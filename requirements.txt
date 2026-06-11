@@ -3,3 +3,5 @@ google-generativeai
 yfinance
 pdfplumber
 pandas
+markdown
+xhtml2pdf

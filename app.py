@@ -75,8 +75,52 @@ def generate_pdf(md_text):
     html_content = markdown.markdown(md_text, extensions=['tables'])
     
     # Wrap in custom CSS for an "Investor Deck" aesthetic
-  # Formulate the Strict System Core Prompt
-         # Formulate the Strict System Core Prompt
+    styled_html = f"""
+    <html>
+        <head>
+            <style>
+                @page {{ margin: 2cm; }}
+                body {{ font-family: Helvetica, Arial, sans-serif; font-size: 11pt; color: #222; line-height: 1.6; }}
+                h1 {{ color: #1a365d; font-size: 18pt; border-bottom: 2px solid #1a365d; padding-bottom: 5px; }}
+                h2 {{ color: #2b6cb0; font-size: 14pt; margin-top: 20px; }}
+                h3 {{ color: #2d3748; font-size: 12pt; }}
+                table {{ border-collapse: collapse; width: 100%; margin-top: 15px; margin-bottom: 15px; }}
+                th, td {{ border: 1px solid #cbd5e0; padding: 10px; text-align: left; }}
+                th {{ background-color: #edf2f7; color: #2d3748; font-weight: bold; }}
+                blockquote {{ border-left: 4px solid #3182ce; background-color: #ebf8ff; padding: 10px 15px; margin: 10px 0; color: #2b6cb0; }}
+                hr {{ border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0; }}
+            </style>
+        </head>
+        <body>
+            {html_content}
+        </body>
+    </html>
+    """
+    
+    # Stamp HTML into PDF Buffer
+    pdf_buffer = BytesIO()
+    pisa_status = pisa.CreatePDF(styled_html, dest=pdf_buffer)
+    
+    if pisa_status.err:
+        return None
+    return pdf_buffer.getvalue()
+
+# 5. Main Execution Button Trigger
+if st.sidebar.button("Run Comprehensive Forensic Analysis"):
+    if not ticker_input:
+        st.error("Please provide a valid stock ticker symbol.")
+    else:
+        with st.spinner("Analyzing data streams and generating PDF... Please wait..."):
+            market_context = fetch_financial_metrics(ticker_input)
+            
+            if uploaded_file is not None:
+                document_context = extract_text_from_pdf(uploaded_file)
+            else:
+                document_context = "No standalone PDF uploaded. Relying purely on internal knowledge and financial data parameters."
+            
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel("gemini-2.5-flash")
+            
             system_prompt = f"""
             You are an elite Forensic Equity Research Analyst. 
             Analyze the following target company using the provided real-time financial context and the uploaded annual report text extract.
@@ -87,23 +131,20 @@ def generate_pdf(md_text):
             ### DOCUMENT TEXT EXTRACT:
             {document_context[:60000]}
             
-            ### 🧠 DEPTH & VERBOSITY DIRECTIVE (CRITICAL):
-            DO NOT SUMMARIZE. DO NOT CUT CORNERS. You must write exhaustive, detailed, multi-sentence analyses for every single section. Explain the "Why" and the "How". If you see a number, explain its context. Your target audience is an institutional fund manager who needs every single detail, nuance, and potential red flag fully fleshed out. Write at least 4-5 thorough sentences per data point inside your blockquotes.
-
-            ### 🛑 ARCHITECTURAL FORMATTING DIRECTIVE:
-            You must deliver this massive amount of detailed text using a highly readable structural aesthetic so it renders beautifully in a PDF.
+            ### 🛑 ARCHITECTURAL FORMATTING DIRECTIVE (CRITICAL):
+            You must write with extreme analytical depth, but you are FORBIDDEN from outputting standard paragraphs or bulleted lists. You must use the "Premium Executive Brief" aesthetic.
             
             1. **The Tagging System:** Every single insight must start with a **Bolded Category Tag** followed by a colon. 
-            2. **The Blockquote Wrap:** The detailed, multi-sentence explanation for that tag MUST be placed on the next line inside a blockquote (`>`).
+            2. **The Blockquote Wrap:** The detailed explanation for that tag must be placed on the next line inside a blockquote (`>`).
             3. **Section Spacing:** You must use HTML line breaks (`<br>`) to force whitespace between sections.
-            4. **Heavy Bolding:** Bold key numbers, executive names, percentages, and critical phrases within your long blockquote paragraphs so the reader can scan the heavy text easily.
+            4. **No Fluff:** Do not write introductory or concluding conversational filler. Start immediately with the title.
 
             ### EXACT REQUIRED TEMPLATE:
 
             # 🏢 Corporate Governance Audit: [Company Name]
             
             ### 🚨 Executive Verdict
-            > [Write a highly detailed, 5-to-6 sentence bottom-line assessment. Cover management quality, integrity, structural stability, and valuation impact in deep detail. Do not hold back.]
+            > [Write a comprehensive, multi-sentence bottom-line assessment. Cover management quality, integrity, structural stability, and valuation impact in deep detail.]
             
             ---
             <br>
@@ -111,13 +152,13 @@ def generate_pdf(md_text):
             ## 🕵️ 1. Management Profile & Integrity Check
 
             **Leadership Profile:**
-            > [Write an exhaustive, multi-sentence assessment of KMP qualifications, tenure, historical track record, and specific examples of "skin in the game". Do not skip details.]
+            > [Write an exhaustive assessment of KMP qualifications, tenure, historical track record, and "skin in the game".]
 
             **Political & Regulatory Exposure:**
-            > [Write a detailed, multi-sentence mapping of any potential political exposure, affiliations, or government alignments. Explain the potential risks in detail.]
+            > [Write a detailed mapping of any potential political exposure, affiliations, or government alignments. Explain the potential risks.]
 
             **Litigation & Fraud Check:**
-            > [Write a thorough, multi-sentence check on past or present regulatory litigations, defaults, or corporate enforcement actions. Provide full context.]
+            > [Write a thorough check on past or present regulatory litigations, defaults, or corporate enforcement actions.]
 
             ---
             <br>
@@ -125,16 +166,16 @@ def generate_pdf(md_text):
             ## ⚖️ 2. Board Efficiency & Remuneration
 
             **Attendance & Structure:**
-            > [Detail the board structure, number of meetings, and specific attendance nuances. Explain the implications of their attendance record in multiple sentences.]
+            > [Detail the board structure, number of meetings, and specific attendance nuances.]
 
             **Pay vs. Performance Alignment:**
-            > [Provide a deep-dive, highly detailed comparison of Management Remuneration Growth vs. Sales Growth and PBT Growth. Fully explain the alignment or decoupling over several sentences.]
+            > [Provide a deep-dive comparison of Management Remuneration Growth vs. Sales Growth and PBT Growth. Fully explain the alignment or decoupling.]
 
             **Internal Pay Equity:**
-            > [Document and thoroughly explain the ratio of highest-paid director to median employee salary, and how it compares to industry norms.]
+            > [Document and thoroughly explain the ratio of highest-paid director to median employee salary.]
             
             ### 📊 Top 10 Peer Capitalization Benchmark
-            [Insert detailed Markdown Table: Peer Name | Market Cap | Detailed Governance Health Benchmark Note]
+            [Insert detailed Markdown Table: Peer Name | Market Cap | Detailed Governance Health Note]
 
             ---
             <br>
@@ -142,10 +183,10 @@ def generate_pdf(md_text):
             ## 🚩 3. Shareholding Patterns & RPTs
 
             **Promoter Holding Trends:**
-            > [Provide a deep, multi-sentence analysis of structural dilution, pledges, and equity ownership patterns over time. Explain what this means for minority shareholders.]
+            > [Provide a deep analysis of structural dilution, pledges, and equity ownership patterns over time. Explain what this means for minority shareholders.]
 
             **Wealth Extraction Check (RPTs):**
-            > [Thoroughly screen and detail any potential wealth extraction channels. Explicitly explain the nature of brand royalties, asset leases, or un-commercialized loans in deep detail.]
+            > [Thoroughly screen and detail any potential wealth extraction channels. Explicitly explain the nature of brand royalties, asset leases, or un-commercialized loans.]
 
             ---
             <br>
@@ -153,13 +194,14 @@ def generate_pdf(md_text):
             ## 💸 4. CSR Deployments & Structural Stability
 
             **CSR Deployment Audit:**
-            > [Audit and explain in detail where corporate social responsibility funds are deployed and if they are routed transparently. Do not summarize.]
+            > [Audit and explain in detail where corporate social responsibility funds are deployed and if they are routed transparently.]
 
             **Cash Flow Trend Stability:**
-            > [Provide a highly detailed evaluation of the fundamental trend stability of cash generation versus accounting earnings. Explain the Steadystick Ratio framework application here in deep detail.]
+            > [Provide a detailed evaluation of the fundamental trend stability of cash generation versus accounting earnings.]
             
             ---
             """
+            
             try:
                 # Run the AI Inference
                 response = model.generate_content(system_prompt)

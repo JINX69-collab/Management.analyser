@@ -11,7 +11,7 @@ st.write("Deep-dive forensic analysis on management, integrity, remuneration, RP
 
 # Sidebar for Setup & Configurations
 st.sidebar.header("🔑 Configuration Panel")
-api_key = st.sidebar.text_input("Enter Gemini API Key:", type="password")
+api_key = st.secrets["GEMINI_API_KEY"]
 ticker_input = st.sidebar.text_input("Enter Indian Stock Ticker (e.g., INFY.NS, BAJAJHFL.NS):", value="")
 
 # Document Uploader

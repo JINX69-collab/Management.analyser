@@ -76,6 +76,7 @@ def generate_pdf(md_text):
     
     # Wrap in custom CSS for an "Investor Deck" aesthetic
   # Formulate the Strict System Core Prompt
+         # Formulate the Strict System Core Prompt
             system_prompt = f"""
             You are an elite Forensic Equity Research Analyst. 
             Analyze the following target company using the provided real-time financial context and the uploaded annual report text extract.
@@ -159,7 +160,6 @@ def generate_pdf(md_text):
             
             ---
             """
-            
             try:
                 # Run the AI Inference
                 response = model.generate_content(system_prompt)

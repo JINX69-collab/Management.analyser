@@ -1,6 +1,6 @@
 """
 Institutional Forensic Governance & Valuation Agent
-Version: 1.1 (Dynamic Mode - Optional PDF)
+Version: 1.2 (Clean Indentation & Stability Edition)
 """
 
 import streamlit as st
@@ -8,10 +8,9 @@ import google.generativeai as genai
 import yfinance as yf
 import pdfplumber
 import markdown
-import os
+import logging
 from xhtml2pdf import pisa
 from io import BytesIO
-import logging
 
 # --- CONFIGURATION & LOGGING ---
 logging.basicConfig(level=logging.INFO)
@@ -19,7 +18,7 @@ st.set_page_config(page_title="Forensic Governance Audit", layout="wide")
 
 # --- UI HEADER ---
 st.title("🛡️ Institutional Forensic Governance & Valuation Agent")
-st.markdown("### Deep-dive forensic audit: Management Integrity, Board Efficiency, RPTs, and Cash Flows.")
+st.markdown("### Forensic Audit: Management Integrity, Board Efficiency, RPTs, and Cash Flows.")
 
 # --- AUTH & SETUP ---
 try:
@@ -29,6 +28,7 @@ except KeyError:
     st.stop()
 
 # --- UTILITY FUNCTIONS ---
+
 def extract_full_pdf_text(pdf_file):
     """Reads every page of the uploaded PDF if available."""
     if pdf_file is None:
@@ -63,7 +63,7 @@ def fetch_financial_metrics(ticker_symbol):
         return {"Error": "Financial fetch failed."}
 
 def generate_pdf_from_markdown(md_text):
-    """Converts the forensic Markdown output into a styled PDF."""
+    """Converts Markdown to a styled PDF."""
     try:
         html_content = markdown.markdown(md_text, extensions=['tables'])
         styled_html = f"""
@@ -80,7 +80,7 @@ def generate_pdf_from_markdown(md_text):
                     blockquote {{ background: #f9f9f9; border-left: 5px solid #2b6cb0; padding: 10px; margin: 15px 0; }}
                 </style>
             </head>
-            <body>{html_content}</body>
+            <body>{styled_html}</body>
         </html>
         """
         buffer = BytesIO()
@@ -105,9 +105,9 @@ if st.sidebar.button("Run Exhaustive Forensic Audit"):
             market_data = fetch_financial_metrics(ticker_input)
             doc_text = extract_full_pdf_text(uploaded_file)
             
-            # 2. Configure Model
+            # 2. Configure Model (Using Pro for stability)
             genai.configure(api_key=API_KEY)
-           model = genai.GenerativeModel("gemini-1.5-flash-latest")
+            model = genai.GenerativeModel("gemini-1.5-pro")
             
             # 3. Dynamic Forensic Prompt
             mode_instruction = "Use the provided Annual Report text for all details." if uploaded_file else "No PDF provided. Use market knowledge and real-time data to perform a forensic estimation of governance risks."
@@ -146,7 +146,7 @@ if st.sidebar.button("Run Exhaustive Forensic Audit"):
             If data is missing, write: 'DATA NOT DISCLOSED IN REPORT'.
             """
             
-            # Generate Report
+            # 4. Generate & Render
             try:
                 response = model.generate_content(
                     system_prompt,
@@ -157,11 +157,9 @@ if st.sidebar.button("Run Exhaustive Forensic Audit"):
                 )
                 
                 report_content = response.text
-                
-                # Render to Screen
                 st.markdown(report_content, unsafe_allow_html=True)
                 
-                # Generate PDF
+                # PDF Generation
                 pdf_data = generate_pdf_from_markdown(report_content)
                 if pdf_data:
                     st.sidebar.download_button("📥 Download Final Forensic Audit PDF", pdf_data, "Forensic_Audit.pdf", "application/pdf")

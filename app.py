@@ -1,7 +1,6 @@
 """
 Institutional Forensic Governance & Valuation Agent
-Version: 1.0 (Enterprise Forensic Edition)
-This script performs an exhaustive audit of annual reports.
+Version: 1.1 (Dynamic Mode - Optional PDF)
 """
 
 import streamlit as st
@@ -20,13 +19,9 @@ st.set_page_config(page_title="Forensic Governance Audit", layout="wide")
 
 # --- UI HEADER ---
 st.title("🛡️ Institutional Forensic Governance & Valuation Agent")
-st.markdown("""
-This tool performs a deep-dive forensic audit on Indian Corporate entities. 
-The analysis is structured into Management Integrity, Board Efficiency, RPTs, and Cash Flow Stability.
-""")
+st.markdown("### Deep-dive forensic audit: Management Integrity, Board Efficiency, RPTs, and Cash Flows.")
 
 # --- AUTH & SETUP ---
-# Ensure your API key is added in Streamlit Cloud under Secrets
 try:
     API_KEY = st.secrets["GEMINI_API_KEY"]
 except KeyError:
@@ -34,12 +29,10 @@ except KeyError:
     st.stop()
 
 # --- UTILITY FUNCTIONS ---
-
 def extract_full_pdf_text(pdf_file):
-    """
-    Reads every page of the uploaded PDF. 
-    Loops through pages to ensure 100% content capture.
-    """
+    """Reads every page of the uploaded PDF if available."""
+    if pdf_file is None:
+        return "NO_PDF_UPLOADED"
     try:
         full_text = ""
         with pdfplumber.open(pdf_file) as pdf:
@@ -61,7 +54,9 @@ def fetch_financial_metrics(ticker_symbol):
             "Company": info.get("longName", ticker_symbol),
             "Sector": info.get("sector", "N/A"),
             "Market Cap": f"{info.get('marketCap', 0):,}",
-            "Industry": info.get("industry", "N/A")
+            "Industry": info.get("industry", "N/A"),
+            "P/E Ratio": info.get("forwardPE", "N/A"),
+            "Debt to Equity": info.get("debtToEquity", "N/A")
         }
     except Exception as e:
         logging.error(f"Market fetch failed: {e}")
@@ -70,10 +65,7 @@ def fetch_financial_metrics(ticker_symbol):
 def generate_pdf_from_markdown(md_text):
     """Converts the forensic Markdown output into a styled PDF."""
     try:
-        # Convert Markdown to HTML with Table support
         html_content = markdown.markdown(md_text, extensions=['tables'])
-        
-        # Define Professional CSS for the PDF
         styled_html = f"""
         <html>
             <head>
@@ -100,47 +92,47 @@ def generate_pdf_from_markdown(md_text):
 
 # --- MAIN APPLICATION LOGIC ---
 
-# Sidebar for User Inputs
 st.sidebar.header("🔑 Input Configuration")
 ticker_input = st.sidebar.text_input("Enter Ticker (e.g., FINKURVE.NS):", value="")
-uploaded_file = st.sidebar.file_uploader("Upload Annual Report (PDF)", type=["pdf"])
+uploaded_file = st.sidebar.file_uploader("Upload Annual Report (PDF - Optional)", type=["pdf"])
 
 if st.sidebar.button("Run Exhaustive Forensic Audit"):
-    if not ticker_input or not uploaded_file:
-        st.error("Please provide both Ticker and PDF file to proceed.")
+    if not ticker_input:
+        st.error("Please provide a Ticker symbol.")
     else:
-        with st.spinner("Processing deep-dive forensic audit... Please wait..."):
+        with st.spinner("Executing forensic audit... (Checking market data & report content)"):
             # 1. Gather Data
             market_data = fetch_financial_metrics(ticker_input)
             doc_text = extract_full_pdf_text(uploaded_file)
             
-            # 2. Configure Model for High Fidelity
+            # 2. Configure Model
             genai.configure(api_key=API_KEY)
-            # gemini-1.5-flash is optimized for large inputs (full PDFs)
             model = genai.GenerativeModel("gemini-1.5-flash")
             
-            # 3. Comprehensive Forensic Prompt Structure
-            # We explicitly list every pillar. 
+            # 3. Dynamic Forensic Prompt
+            mode_instruction = "Use the provided Annual Report text for all details." if uploaded_file else "No PDF provided. Use market knowledge and real-time data to perform a forensic estimation of governance risks."
+            
             system_prompt = f"""
             You are a Senior Forensic Equity Research Analyst. 
-            Analyze the following text with total exhaustiveness. Do not summarize. 
-            Do not cut details. Address every point below. If a metric is missing, explicitly write: 'DATA NOT DISCLOSED IN REPORT'.
+            Analyze the following entity with total exhaustiveness. Do not summarize. 
             
-            REPORT DATA: {doc_text[:250000]} 
-            MARKET DATA: {market_data}
+            {mode_instruction}
             
-            MANDATORY AUDIT SECTIONS:
+            REPORT DATA (if present): {doc_text[:250000]} 
+            MARKET DATA (Real-time): {market_data}
+            
+            MANDATORY AUDIT SECTIONS (Cover all):
             
             A. MANAGEMENT INTEGRITY:
             - Full Profile: Age, Qualifications, Tenure, Historical Track Record of KMPs.
-            - Political Connections: Semantic screening for political exposure, govt advisory roles.
-            - Fraud/Litigation: Audit SEBI/MCA/ED/Regulatory actions, defaults, and ongoing legal issues.
+            - Political Connections: Semantic screening for political exposure, govt advisory roles, party alignments.
+            - Fraud/Litigation: Audit SEBI/MCA/ED/Regulatory actions, defaults, and legal history.
             
             B. BOARD GOVERNANCE & REMUNERATION:
-            - Meetings: Extract total board meetings and individual attendance % for each member.
-            - Pay vs Performance: Map YoY Sales Growth vs Management Remuneration Growth. Flag aggressive hikes despite stagnant sales.
+            - Meetings: Total board meetings and attendance % for members.
+            - Pay vs Performance: Map YoY Sales Growth vs Management Remuneration Growth.
             - Pay Equity: Calculate ratio of highest-paid director vs. median employee; management group median vs. employee median.
-            - Peer Comparison: Benchmark against Top 10 sector peers.
+            - Peer Comparison: Benchmark against Top 10 sector peers (Market Cap).
             
             C. SHAREHOLDING & RPTs:
             - Promoter Trends: Audit multi-year holding changes, pledges, and hidden entities.
@@ -150,7 +142,8 @@ if st.sidebar.button("Run Exhaustive Forensic Audit"):
             - CSR Deployment: Identify specific NGOs/Trusts used. Audit for transparency and family connections.
             - Steadystick Ratio: Evaluate Operating Cash Flow vs. Accounting Profit consistency.
             
-            FORMATTING: Use bolding for figures and Markdown tables for all quantitative comparisons. Provide 5-6 sentences per subsection.
+            FORMATTING: Provide 5-6 sentences per subsection. Use bolding and Markdown tables. 
+            If data is missing, write: 'DATA NOT DISCLOSED IN REPORT'.
             """
             
             # Generate Report
@@ -158,8 +151,8 @@ if st.sidebar.button("Run Exhaustive Forensic Audit"):
                 response = model.generate_content(
                     system_prompt,
                     generation_config=genai.types.GenerationConfig(
-                        max_output_tokens=8192, # Maximized output size
-                        temperature=0.2 # Low temperature for factual accuracy
+                        max_output_tokens=8192,
+                        temperature=0.1
                     )
                 )
                 
@@ -168,16 +161,13 @@ if st.sidebar.button("Run Exhaustive Forensic Audit"):
                 # Render to Screen
                 st.markdown(report_content, unsafe_allow_html=True)
                 
-                # Generate PDF Download
+                # Generate PDF
                 pdf_data = generate_pdf_from_markdown(report_content)
                 if pdf_data:
                     st.sidebar.download_button("📥 Download Final Forensic Audit PDF", pdf_data, "Forensic_Audit.pdf", "application/pdf")
-                else:
-                    st.error("Failed to generate PDF.")
             
             except Exception as e:
                 st.error(f"Analysis failed: {str(e)}")
 
-# Add footer spacing to ensure code is clean
 st.sidebar.markdown("---")
-st.sidebar.info("Designed for Deep-Dive Forensic Audits.")
+st.sidebar.info("System Ready. Upload optional.")

@@ -107,7 +107,7 @@ if st.sidebar.button("Run Exhaustive Forensic Audit"):
             
             # 2. Configure Model
             genai.configure(api_key=API_KEY)
-            model = genai.GenerativeModel("gemini-1.5-pro")
+           model = genai.GenerativeModel("gemini-1.5-flash-latest")
             
             # 3. Dynamic Forensic Prompt
             mode_instruction = "Use the provided Annual Report text for all details." if uploaded_file else "No PDF provided. Use market knowledge and real-time data to perform a forensic estimation of governance risks."

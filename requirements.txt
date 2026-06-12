@@ -5,3 +5,7 @@ pdfplumber
 pandas
 markdown
 xhtml2pdf
+streamlit
+google-generativeai
+pdfplumber
+duckduckgo_search

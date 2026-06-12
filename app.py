@@ -1,31 +1,70 @@
 import streamlit as st
 import google.generativeai as genai
+import pdfplumber
+from duckduckgo_search import DDGS
 import logging
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Forensic Governance Agent", layout="wide")
-st.title("🛡️ Forensic Governance & Valuation Agent: Setup Phase")
+st.title("🛡️ Management Integrity: Web-Enabled Audit")
 
-# --- API CONNECTION TEST ---
-def verify_api_connection(api_key):
+# --- DATA GATHERING (PDF or WEB) ---
+def extract_pdf_content(pdf_file):
+    if pdf_file is None: return None
+    with pdfplumber.open(pdf_file) as pdf:
+        return "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
+
+def search_management_info(ticker):
+    """Searches the web for management data and regulatory news."""
     try:
-        genai.configure(api_key=api_key)
-        # Check available models to solve 404 errors
-        models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        return True, models
+        query = f"{ticker} company board of directors management team SEBI MCA fraud litigation news"
+        results = DDGS().text(query, max_results=5)
+        return str(results)
     except Exception as e:
-        return False, str(e)
+        return f"Web search failed: {e}"
 
-# --- UI ---
+# --- ANALYSIS ENGINE ---
+def run_management_audit(context_data, api_key):
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel("models/gemini-3.5-flash")
+    
+    prompt = f"""
+    You are a professional Forensic Auditor. Analyze the provided context (either PDF or Web Search Results).
+    
+    CONTEXT DATA: 
+    {context_data}
+    
+    Your task:
+    1. Identify all KMPs, CEO, MD, and Directors.
+    2. Populate the table based strictly on the provided context.
+    
+    REQUIRED TABLE COLUMNS:
+    | Name of Management | Designation | Relevant Info (Age/Qual/Tenure) | Political Connections | Involvement in Fraud/Litigation |
+    
+    INSTRUCTIONS:
+    - If any data is missing, write "DATA NOT DISCLOSED".
+    - After the table, write a 'Forensic Risk Verdict' summarizing any red flags found in the data.
+    """
+    response = model.generate_content(prompt)
+    return response.text
+
+# --- UI & LOGIC ---
 api_key = st.sidebar.text_input("Enter Gemini API Key:", type="password")
+ticker = st.sidebar.text_input("Enter Ticker (e.g., RELIANCE.NS):")
+uploaded_file = st.sidebar.file_uploader("Upload Annual Report (Optional)", type=["pdf"])
 
-if st.sidebar.button("Test Connection"):
-    if not api_key:
-        st.error("Please enter your API Key.")
+if st.sidebar.button("Run Audit"):
+    if not api_key or not ticker:
+        st.error("API Key and Ticker are required.")
     else:
-        success, result = verify_api_connection(api_key)
-        if success:
-            st.success("Connection Successful!")
-            st.write("Available Models:", result)
-        else:
-            st.error(f"Connection Failed: {result}")
+        with st.spinner("Gathering data..."):
+            # Logic: PDF first, then Web
+            if uploaded_file:
+                context = extract_pdf_content(uploaded_file)
+                st.info("Using PDF document...")
+            else:
+                context = search_management_info(ticker)
+                st.info("No PDF detected. Searching live web for management data...")
+            
+            result = run_management_audit(context, api_key)
+            st.markdown(result)

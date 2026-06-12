@@ -1,64 +1,66 @@
 import streamlit as st
 import google.generativeai as genai
-import pdfplumber
 from duckduckgo_search import DDGS
 
-st.set_page_config(page_title="Forensic Governance Audit", layout="wide")
-st.title("🛡️ Forensic Governance Agent")
+st.set_page_config(page_title="Forensic Governance Agent", layout="wide")
+st.title("🛡️ Forensic Governance Agent: Management Audit")
 
 # --- AUTH ---
 try:
     API_KEY = st.secrets["GEMINI_API_KEY"]
-except Exception:
-    st.error("Secrets not found.")
+except:
+    st.error("Set GEMINI_API_KEY in Streamlit Secrets.")
     st.stop()
 
-def get_context(ticker, uploaded_file):
-    """Detects if PDF is image-based and switches to Web Search if necessary."""
-    text = ""
-    if uploaded_file:
-        with pdfplumber.open(uploaded_file) as pdf:
-            text = "\n".join([page.extract_text() for page in pdf.pages[:5] if page.extract_text()])
-        
-        # If less than 100 characters, it's almost certainly an image-scan
-        if len(text) < 100:
-            st.warning("⚠️ PDF is an image-scan (No text found). Switching to Web Search automatically...")
-            return None
-        return text
-    return None
+# --- SEARCH ENGINE ---
+def search_management_info(ticker):
+    """Targets specific, high-quality financial websites."""
+    query = f"site:moneycontrol.com OR site:screener.in {ticker} Board of Directors management team"
+    try:
+        results = DDGS().text(query, max_results=5)
+        return "\n".join([r['body'] for r in results])
+    except:
+        return ""
 
-def run_audit(context, ticker, api_key):
+# --- AUDIT ENGINE ---
+def run_management_audit(context, api_key):
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel("models/gemini-3.5-flash")
     
-    # If context is empty (No PDF or Scanned PDF), Search the Web
-    if not context:
-        st.info(f"Searching web for {ticker} management details...")
-        context = str(DDGS().text(f"{ticker} company annual report board of directors management details management team", max_results=8))
-
     prompt = f"""
-    You are a Lead Forensic Auditor.
+    You are a professional Forensic Auditor. Extract the management team from the provided search data.
     
-    DATA SOURCE: {context[:150000]}
+    SEARCH DATA:
+    {context[:100000]}
     
-    TASK: Populate this table regarding the company's management:
-    | Name of Management | Designation | Relevant Info (Age/Qual/Tenure) | Political Connections | Involvement in Fraud |
+    INSTRUCTIONS:
+    1. Create a table of the Board of Directors/Key Management.
+    2. If a value is missing, use "N/A" (DO NOT write 'NOT DISCLOSED').
+    3. If the search data is insufficient to find names, write "NO DATA FOUND IN SEARCH".
     
-    If the source does not mention a specific field, write "NOT DISCLOSED". 
-    Do not skip names.
+    REQUIRED FORMAT:
+    | Name | Designation | Info | Political | Fraud/Litigation |
+    | --- | --- | --- | --- | --- |
+    | [Name] | [Role] | [Age/Tenure] | [None/Details] | [None/Details] |
     
-    FORENSIC VERDICT: 
-    After the table, provide a short summary of any governance concerns found in the data (e.g. lack of independence, family-run structure, litigation history).
+    Provide the table, then a 3-sentence Forensic Risk Verdict.
     """
     return model.generate_content(prompt).text
 
 # --- UI ---
-ticker = st.sidebar.text_input("Enter Ticker (e.g., RELIANCE.NS):")
-uploaded_file = st.sidebar.file_uploader("Upload Annual Report", type=["pdf"])
+ticker = st.text_input("Enter Ticker (e.g., RELIANCE.NS):")
+debug_mode = st.toggle("Enable Debug Mode (See Search Results)")
 
-if st.sidebar.button("Run Audit"):
-    if not ticker: st.error("Need Ticker.")
+if st.button("Run Audit"):
+    if not ticker:
+        st.error("Please enter a ticker.")
     else:
-        context = get_context(ticker, uploaded_file)
-        result = run_audit(context, ticker, API_KEY)
-        st.markdown(result)
+        with st.spinner("Fetching data..."):
+            context = search_management_info(ticker)
+            
+            if debug_mode:
+                st.subheader("🔍 Raw Search Data Received:")
+                st.write(context)
+            
+            result = run_management_audit(context, API_KEY)
+            st.markdown(result)

@@ -1,6 +1,7 @@
 import streamlit as st
 import google.generativeai as genai
 import yfinance as yf
+import time
 
 st.set_page_config(page_title="Flagship Forensic Governance Agent", layout="wide")
 st.title("🛡️ Flagship Forensic Governance Agent")
@@ -20,13 +21,11 @@ def get_comprehensive_company_data(ticker):
     try:
         stock = yf.Ticker(ticker)
         
-        # 1. Core Corporate Info (Sector, Industry, Summary)
         info_dict = stock.info
         sector = info_dict.get("sector", "N/A")
         industry = info_dict.get("industry", "N/A")
         long_summary = info_dict.get("longBusinessSummary", "No corporate summary available.")
         
-        # 2. Executive Roster & Compensation
         officers = info_dict.get("companyOfficers", [])
         mgmt_text = "--- OFFICIAL MANAGEMENT DATA SEED ---\n"
         if not officers:
@@ -39,7 +38,6 @@ def get_comprehensive_company_data(ticker):
                 pay = person.get('totalPay', 'N/A')
                 mgmt_text += f"Officer Name: {name} | Designation: {title} | Age: {age} | Disclosed Pay: {pay}\n"
                 
-        # 3. 5-Year Financial Statements History
         financials = stock.financials
         fin_text = "--- 5-YEAR FINANCIAL HISTORICAL STATEMENT ---\n"
         if not financials.empty:
@@ -54,7 +52,7 @@ def get_comprehensive_company_data(ticker):
 
 # --- COGNITIVE FORENSIC ANALYSIS ENGINE ---
 def run_flagship_forensic_audit(context, ticker):
-    """Processes all corporate and financial seeds to output four distinct, clean forensic tables."""
+    """Processes all seeds to output 4 distinct tables. Includes Auto-Retry for Rate Limits."""
     model = genai.GenerativeModel("gemini-2.5-flash")
     
     prompt = f"""
@@ -64,7 +62,7 @@ def run_flagship_forensic_audit(context, ticker):
     {context}
     
     INSTRUCTIONS:
-    Generate exactly FOUR separate, clean Markdown tables. Do not combine tables or leave out details. If a specific structural data point (e.g., explicit political exposure, localized corporate fraud litigation, employee median baselines, or specific competitor peer names/metrics) is not fully detailed in the raw data seed, use your extensive financial market knowledge and regional database patterns to calculate and inject realistic forensic estimations. Mark estimations with an asterisk (*).
+    Generate exactly FOUR separate, clean Markdown tables. Do not combine tables or leave out details. If a specific structural data point is not fully detailed in the raw data seed, use your extensive financial market knowledge and regional database patterns to calculate and inject realistic forensic estimations. Mark estimations with an asterisk (*).
     
     ---
     
@@ -97,13 +95,24 @@ def run_flagship_forensic_audit(context, ticker):
     ---
     
     ### FORENSIC RISK VERDICT
-    Provide a concise summary evaluating discrepancies across these 4 standalone modules, highlighting structural governance anomalies or compensation misalignment.
+    Provide a concise summary evaluating discrepancies across these 4 standalone modules.
     """
     
-    try:
-        return model.generate_content(prompt).text
-    except Exception as e:
-        return f"⚠️ **GENERATION ERROR:** {str(e)}"
+    # AUTO-RETRY LOGIC TO PREVENT QUOTA CRASHES
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            return model.generate_content(prompt).text
+        except Exception as e:
+            error_msg = str(e)
+            if "429" in error_msg or "Quota" in error_msg:
+                if attempt < max_retries - 1:
+                    time.sleep(20) # Pauses for 20 seconds and tries again automatically
+                    continue
+                else:
+                    return "⚠️ **SPEED LIMIT REACHED:** Google's Free Tier limits usage to 5 requests per minute. Please wait 60 seconds and click 'Execute' again."
+            else:
+                return f"⚠️ **GENERATION ERROR:** {error_msg}"
 
 # --- USER INTERFACE ---
 st.info("💡 Flagship Settings: Enter exact exchange identifiers. For Indian equity markets, append **.NS** or **.BO** (e.g., RELIANCE.NS, TCS.NS).")
@@ -124,7 +133,7 @@ if mode == "Direct Financial API (Automated Live Feed)":
                 elif "NO_DATA" in company_context:
                     st.error("The data provider returned an empty set for this asset profile. Please verify token format.")
                 else:
-                    with st.spinner("Synthesizing metrics and constructing master multi-table audit..."):
+                    with st.spinner("Synthesizing metrics and constructing master multi-table audit... (This may take an extra 20 seconds if rate limit is reached)"):
                         audit_output = run_flagship_forensic_audit(company_context, ticker_input)
                         st.markdown(audit_output)
                 

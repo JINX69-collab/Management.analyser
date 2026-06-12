@@ -4,7 +4,7 @@ import pdfplumber
 from duckduckgo_search import DDGS
 
 st.set_page_config(page_title="Forensic Governance Audit", layout="wide")
-st.title("🛡️ Forensic Governance: Debug Mode")
+st.title("🛡️ Forensic Governance Agent")
 
 # --- AUTH ---
 try:
@@ -13,54 +13,52 @@ except Exception:
     st.error("Secrets not found.")
     st.stop()
 
-def extract_pdf_content(pdf_file):
-    if not pdf_file: return ""
-    with pdfplumber.open(pdf_file) as pdf:
-        # Extract only the first 10 pages for the debug test
-        text = "\n".join([page.extract_text() for page in pdf.pages[:10] if page.extract_text()])
+def get_context(ticker, uploaded_file):
+    """Detects if PDF is image-based and switches to Web Search if necessary."""
+    text = ""
+    if uploaded_file:
+        with pdfplumber.open(uploaded_file) as pdf:
+            text = "\n".join([page.extract_text() for page in pdf.pages[:5] if page.extract_text()])
+        
+        # If less than 100 characters, it's almost certainly an image-scan
+        if len(text) < 100:
+            st.warning("⚠️ PDF is an image-scan (No text found). Switching to Web Search automatically...")
+            return None
         return text
+    return None
 
-def run_audit(context_data, api_key):
+def run_audit(context, ticker, api_key):
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel("models/gemini-3.5-flash")
     
+    # If context is empty (No PDF or Scanned PDF), Search the Web
+    if not context:
+        st.info(f"Searching web for {ticker} management details...")
+        context = str(DDGS().text(f"{ticker} company annual report board of directors management details management team", max_results=8))
+
     prompt = f"""
-    You are a forensic auditor. Your goal is to extract management data into a table.
+    You are a Lead Forensic Auditor.
     
-    DATA PROVIDED:
-    {context_data[:100000]}
+    DATA SOURCE: {context[:150000]}
     
-    INSTRUCTIONS:
-    1. Scan the text for names, roles, and governance disclosures.
-    2. Populate the table below.
-    3. If you do not find info, write "NOT DISCLOSED" for that specific cell. Do not say "NOT DISCLOSED" for the whole table if you found at least one name.
+    TASK: Populate this table regarding the company's management:
+    | Name of Management | Designation | Relevant Info (Age/Qual/Tenure) | Political Connections | Involvement in Fraud |
     
-    EXAMPLE FORMAT:
-    | Name of Management | Designation | Relevant Info | Political Connections | Involvement in Fraud |
-    | --- | --- | --- | --- | --- |
-    | John Doe | CEO | 55, MBA, 10yrs tenure | None disclosed | None |
+    If the source does not mention a specific field, write "NOT DISCLOSED". 
+    Do not skip names.
     
-    YOUR OUTPUT:
+    FORENSIC VERDICT: 
+    After the table, provide a short summary of any governance concerns found in the data (e.g. lack of independence, family-run structure, litigation history).
     """
-    response = model.generate_content(prompt)
-    return response.text
+    return model.generate_content(prompt).text
 
 # --- UI ---
-ticker = st.sidebar.text_input("Ticker:")
-uploaded_file = st.sidebar.file_uploader("Upload PDF", type=["pdf"])
+ticker = st.sidebar.text_input("Enter Ticker (e.g., RELIANCE.NS):")
+uploaded_file = st.sidebar.file_uploader("Upload Annual Report", type=["pdf"])
 
 if st.sidebar.button("Run Audit"):
     if not ticker: st.error("Need Ticker.")
     else:
-        context = extract_pdf_content(uploaded_file) if uploaded_file else ""
-        
-        # DEBUG: Show us what the AI sees
-        st.subheader("🔍 Debug: Raw Text Extracted from PDF")
-        st.text_area("Extracted Preview:", value=context[:2000], height=200)
-        
-        if not context:
-            st.info("No text extracted. Using Web Search instead.")
-            context = str(DDGS().text(f"{ticker} management board of directors", max_results=3))
-            
-        result = run_audit(context, API_KEY)
+        context = get_context(ticker, uploaded_file)
+        result = run_audit(context, ticker, API_KEY)
         st.markdown(result)

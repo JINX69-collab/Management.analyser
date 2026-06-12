@@ -1,9 +1,9 @@
 import streamlit as st
+import requests
 import google.generativeai as genai
-from duckduckgo_search import DDGS
 
-st.set_page_config(page_title="Forensic Governance Audit", layout="wide")
-st.title("🛡️ Forensic Governance Agent")
+st.set_page_config(page_title="Forensic Governance Agent", layout="wide")
+st.title("🛡️ Forensic Governance Agent: Official Site Reader")
 
 # --- AUTH ---
 try:
@@ -12,42 +12,52 @@ except:
     st.error("Set GEMINI_API_KEY in Secrets.")
     st.stop()
 
-# --- ENGINE ---
-def run_forensic_audit(text, api_key):
+# --- THE "HINDRANCE-FREE" ENGINE ---
+def read_official_site(url):
+    """
+    Uses Jina Reader to bypass firewalls and convert the 
+    official corporate page into clean text.
+    """
+    # The prefix 'https://r.jina.ai/' is the key that bypasses bot blockers
+    jina_url = f"https://r.jina.ai/{url}"
+    try:
+        response = requests.get(jina_url, timeout=30)
+        if response.status_code == 200:
+            return response.text
+        else:
+            return "ERROR: Could not access site. URL might be blocked."
+    except Exception as e:
+        return f"Error: {e}"
+
+def run_audit(text, api_key):
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel("models/gemini-3.5-flash")
     
     prompt = f"""
-    You are a forensic auditor. Your goal is to convert the provided text into a formal governance table.
+    You are a forensic auditor. Use the provided text from the official company website 
+    to populate the governance table.
     
-    DATA PROVIDED:
-    {text}
+    TEXT FROM WEBSITE:
+    {text[:150000]}
     
-    INSTRUCTIONS:
-    1. Extract all names and roles found in the text.
-    2. Format as a table. Use "N/A" if info is missing.
-    3. If the text does not contain people, say "No management data found in text."
-    
-    | Name | Designation | Relevant Info | Political | Fraud/Litigation |
-    | --- | --- | --- | --- | --- |
-    
-    Forensic Verdict:
-    Summarize any red flags found.
+    TASK: 
+    1. Extract all Directors/KMPs.
+    2. Format into table: | Name | Designation | Info | Political | Fraud/Litigation |
+    3. Use "N/A" if info is missing.
     """
     return model.generate_content(prompt).text
 
 # --- UI ---
-ticker = st.text_input("Ticker (e.g., RELIANCE.NS):")
-use_manual = st.checkbox("Manual Mode: I will paste text from my phone")
+# PRO-TIP: You can find these links easily on Google: 'RELIANCE industries investor relations'
+target_url = st.text_input("Paste the Official Investor Relations URL (e.g., https://www.ril.com/investor-relations/):")
 
-if use_manual:
-    raw_text = st.text_area("Paste the text you see on your phone here:")
-    if st.button("Generate Table from Paste"):
-        st.markdown(run_forensic_audit(raw_text, API_KEY))
-else:
-    if st.button("Run Auto-Search"):
-        with st.spinner("Searching..."):
-            results = DDGS().text(f"{ticker} board of directors management team", max_results=5)
-            full_context = "\n".join([r['body'] for r in results])
-            st.markdown(run_forensic_audit(full_context, API_KEY))
-            st.info("If the table is empty, check 'Manual Mode' and paste the text from your phone.")
+if st.button("Read & Analyze Official Site"):
+    if not target_url:
+        st.error("Please provide a valid URL.")
+    else:
+        with st.spinner("Bypassing corporate firewall and reading site..."):
+            site_content = read_official_site(target_url)
+            if "ERROR" in site_content:
+                st.error(site_content)
+            else:
+                st.markdown(run_audit(site_content, API_KEY))

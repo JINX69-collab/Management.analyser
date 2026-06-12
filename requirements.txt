@@ -9,3 +9,5 @@ streamlit
 google-generativeai
 pdfplumber
 duckduckgo_search
+streamlit
+google-generativeai>=0.8.4

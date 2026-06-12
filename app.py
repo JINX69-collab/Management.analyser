@@ -21,13 +21,11 @@ def get_comprehensive_company_data(ticker):
     try:
         stock = yf.Ticker(ticker)
         
-        # 1. Core Corporate Info (Sector, Industry, Summary)
         info_dict = stock.info
         sector = info_dict.get("sector", "N/A")
         industry = info_dict.get("industry", "N/A")
         long_summary = info_dict.get("longBusinessSummary", "No corporate summary available.")
         
-        # 2. Executive Roster & Compensation
         officers = info_dict.get("companyOfficers", [])
         mgmt_text = "--- OFFICIAL MANAGEMENT DATA SEED ---\n"
         if not officers:
@@ -40,7 +38,6 @@ def get_comprehensive_company_data(ticker):
                 pay = person.get('totalPay', 'N/A')
                 mgmt_text += f"Officer Name: {name} | Designation: {title} | Age: {age} | Disclosed Pay: {pay}\n"
                 
-        # 3. 5-Year Financial Statements History
         financials = stock.financials
         fin_text = "--- 5-YEAR FINANCIAL HISTORICAL STATEMENT ---\n"
         if not financials.empty:
@@ -55,7 +52,7 @@ def get_comprehensive_company_data(ticker):
 
 # --- COGNITIVE FORENSIC ANALYSIS ENGINE ---
 def run_flagship_forensic_audit(context, ticker):
-    """Processes all corporate and financial seeds to output eight distinct, clean forensic tables."""
+    """Generates the 8-table audit prompt and calls the Gemini API."""
     model = genai.GenerativeModel("gemini-2.5-flash")
     
     prompt = f"""
@@ -65,47 +62,36 @@ def run_flagship_forensic_audit(context, ticker):
     {context}
     
     INSTRUCTIONS:
-    Generate exactly EIGHT separate, clean Markdown tables followed by a final conclusion. Do not combine tables or leave out details. If a specific structural data point (e.g., explicit political exposure, exact CSR spending, exact board meeting attendance, specific competitor peer names/metrics, or precise transactional line items) is not fully detailed in the raw data seed, use your extensive financial market knowledge, regulatory filing patterns, and regional database patterns to calculate and inject realistic forensic estimations based on the company's size and sector. Mark estimations with an asterisk (*).
+    Generate exactly EIGHT separate, clean Markdown tables followed by a final conclusion. Do not combine tables or leave out details. If a specific structural data point is not fully detailed in the raw data seed, use your extensive financial market knowledge, regulatory filing patterns, and regional database patterns to calculate and inject realistic forensic estimations based on the company's size and sector. Mark estimations with an asterisk (*).
     
     ---
     
     ### 1. MANAGEMENT ANALYSIS TABLE
-    Purpose: Audit the baseline background, background qualifications, external exposure, and litigation history of all listed leadership.
     Columns: | Name of Management | Designation | Relevant Info (Age/Qual/Tenure) | Political Connections / Conflict of Interest | Involvement in Fraud / Corporate Litigation History |
     
     ### 2. REMUNERATION ANALYSIS TABLE
-    Purpose: Map individual executive compensation and compute baseline internal spreads against standard workforce baselines. Do not include peer averages in this table.
     Columns: | Name | Designation | Individual Remuneration | Management Median | Employee Median* | Management/Employee Ratio* |
     
     ### 3. PEER REMUNERATION COMPARISON TABLE
-    Purpose: Provide a direct, name-by-name benchmarking breakdown of the top 10 closest sector peers in the market. 
     - CRITICAL SECTOR FILTERING REQUIREMENT: Identify the specific Sector and Industry listed in the Target Company Profile. You must select exactly 10 major peer companies that operate strictly within this exact same sector/industry classification. Do not include cross-sector or generalized diversified peers.
     - CRITICAL: At the absolute bottom/last row of this table, add the target company ({ticker}) for immediate cross-comparison.
     Columns: | Company Name | Sector/Industry | Management/Employee Remuneration Ratio* |
     
     ### 4. 5-YEAR HISTORICAL GROWTH & COMPENSATION TRENDS TABLE
-    Purpose: Cross-examine business performance trajectory directly against corporate wage expansion to track potential rent-seeking behaviors.
     Columns: | Financial Year | Sales Growth (%) | Profit Growth (%) | Employee Remuneration Growth (%)* | Management Remuneration Growth (%)* |
     
     ### 5. RELATED PARTY TRANSACTIONS (RPT) AUDIT TABLE
-    Purpose: Identify and analyze transactions between the company and its promoters, directors, or key relatives to catch asset siphoning or value diversion.
     - Note anomalies where transaction growth drastically disconnects from underlying business fundamentals. Note if the promoter holds critical patents or assets outside the listed entity.
     Columns: | Related Party / Entity | Nature of Relationship | Type of Transaction | Annual Value / Growth Trend* | Forensic Assessment & Risk Level (Low/Medium/High) |
     
     ### 6. SHAREHOLDING PATTERNS & INSIDER TRADING TABLE
-    Purpose: Map the ownership distribution and track any suspicious insider trading or proxy accumulation by outside entities acting on behalf of insiders.
-    - Break down holdings by Promoters, Foreign Institutional Investors (FII), Domestic Institutions (DII), and Public.
-    - Highlight notable off-market transfers, pledged promoter shares, or suspected proxy front-running.
+    - Break down holdings by Promoters, Foreign Institutional Investors (FII), Domestic Institutions (DII), and Public. Highlight notable off-market transfers or pledged promoter shares.
     Columns: | Shareholder Category | Current Holding (%)* | 1-Year Change (%)* | Notable Insider Trades / Proxy Activity Flags* | Forensic Risk Assessment |
     
     ### 7. BOARD MEETING ATTENDANCE TABLE
-    Purpose: Track director engagement and verify compliance with corporate governance mandates for the financial year.
-    - List the number of meetings held and evaluate if any directors are chronically absent ("sleeping directors").
     Columns: | Name of Director | Designation | Total Meetings Held in FY* | Meetings Attended* | Attendance Percentage* | Regulatory Compliance Flag |
     
     ### 8. CORPORATE SOCIAL RESPONSIBILITY (CSR) FUND UTILIZATION TABLE
-    Purpose: Audit mandatory CSR spending to ensure funds are not being routed back to promoter-affiliated NGOs or shell trusts.
-    - Identify core CSR projects and audit the beneficiaries for potential conflicts of interest.
     Columns: | Core CSR Project / Sector | Allocated Budget* | Actual Amount Spent* | Unspent Amount Transferred / Deficit* | Forensic Audit of Beneficiary (Conflict of Interest Risk)* |
     
     ---
@@ -117,20 +103,36 @@ def run_flagship_forensic_audit(context, ticker):
     3. Give a final "Investment/Governance Risk Grade" (e.g., A, B, C, D, or F) with a concluding justification.
     """
     
-    max_retries = 3
+    # We remove the try/except here so the queue system can handle the errors directly.
+    return model.generate_content(prompt).text
+
+# --- LIVE QUEUE SYSTEM MANAGER ---
+def process_with_live_queue(context, ticker):
+    """Handles API calls and creates a visual live-countdown queue if limits are reached."""
+    queue_ui = st.empty() # Creates a dynamic container on the screen
+    max_retries = 6 # Allows up to 5 minutes of queue time
+    
     for attempt in range(max_retries):
         try:
-            return model.generate_content(prompt).text
+            # Attempt to generate the report
+            report_data = run_flagship_forensic_audit(context, ticker)
+            queue_ui.empty() # Clear the queue message upon success
+            return report_data, True
+            
         except Exception as e:
             error_msg = str(e)
-            if "429" in error_msg or "Quota" in error_msg:
+            # If Google throws a Rate Limit / Quota error, trigger the Queue System
+            if "429" in error_msg or "Quota" in error_msg or "ResourceExhausted" in error_msg:
                 if attempt < max_retries - 1:
-                    time.sleep(20)
-                    continue
+                    # Live Countdown Loop
+                    for i in range(60, 0, -1):
+                        queue_ui.warning(f"⏳ **High Traffic Queue.** You are currently in the auto-queue. Your report will generate in **{i} seconds...**")
+                        time.sleep(1)
                 else:
-                    return "⚠️ **SPEED LIMIT REACHED:** Google's Free Tier limits usage to 5 requests per minute. Please wait 60 seconds and click 'Execute' again."
+                    return "⚠️ **Queue Timeout.** The server is at maximum capacity. Please try again later.", False
             else:
-                return f"⚠️ **GENERATION ERROR:** {error_msg}"
+                # If it's a different random error, stop and report it
+                return f"⚠️ **GENERATION ERROR:** {error_msg}", False
 
 # --- USER INTERFACE ---
 st.info("💡 Flagship Settings: Enter exact exchange identifiers. For Indian equity markets, append **.NS** or **.BO** (e.g., RELIANCE.NS, TCS.NS).")
@@ -152,20 +154,23 @@ if mode == "Direct Financial API (Automated Live Feed)":
                     st.error("The data provider returned an empty set for this asset profile. Please verify token format.")
                 else:
                     with st.spinner("Synthesizing metrics and constructing master 8-table audit..."):
-                        audit_output = run_flagship_forensic_audit(company_context, ticker_input)
+                        
+                        # Trigger the Queue System Manager
+                        audit_output, success = process_with_live_queue(company_context, ticker_input)
                         
                         # DISPLAY REPORT
                         st.markdown(audit_output)
                         
-                        # DOWNLOAD BUTTON
-                        st.divider()
-                        st.success("✅ Audit Complete. Your report is ready.")
-                        st.download_button(
-                            label="📥 Download Forensic Report to Desktop",
-                            data=audit_output,
-                            file_name=f"{ticker_input}_Forensic_Audit_Report.md",
-                            mime="text/markdown"
-                        )
+                        # ONLY SHOW DOWNLOAD BUTTON IF SUCCESSFUL
+                        if success:
+                            st.divider()
+                            st.success("✅ Audit Complete. Your report has left the queue and is ready.")
+                            st.download_button(
+                                label="📥 Download Forensic Report to Desktop",
+                                data=audit_output,
+                                file_name=f"{ticker_input}_Forensic_Audit_Report.md",
+                                mime="text/markdown"
+                            )
                 
 else:
     raw_filing_paste = st.text_area("Paste unstructured textual filings (e.g., Related Party Disclosures, Corporate Governance Reports, Annual Reports):", height=300)
@@ -174,17 +179,20 @@ else:
             st.error("Input area is empty. Please supply text context to execute analysis.")
         else:
             with st.spinner("Parsing text fields and aligning historical vectors..."):
-                audit_output = run_flagship_forensic_audit(raw_filing_paste, "Custom Context Dataset")
+                
+                # Trigger the Queue System Manager
+                audit_output, success = process_with_live_queue(raw_filing_paste, "Custom Context Dataset")
                 
                 # DISPLAY REPORT
                 st.markdown(audit_output)
                 
-                # DOWNLOAD BUTTON
-                st.divider()
-                st.success("✅ Audit Complete. Your report is ready.")
-                st.download_button(
-                    label="📥 Download Forensic Report to Desktop",
-                    data=audit_output,
-                    file_name="Custom_Forensic_Audit_Report.md",
-                    mime="text/markdown"
-                )
+                # ONLY SHOW DOWNLOAD BUTTON IF SUCCESSFUL
+                if success:
+                    st.divider()
+                    st.success("✅ Audit Complete. Your report has left the queue and is ready.")
+                    st.download_button(
+                        label="📥 Download Forensic Report to Desktop",
+                        data=audit_output,
+                        file_name="Custom_Forensic_Audit_Report.md",
+                        mime="text/markdown"
+                    )

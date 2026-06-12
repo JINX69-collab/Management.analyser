@@ -2,7 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 
 st.set_page_config(page_title="Forensic Governance Agent", layout="wide")
-st.title("🛡️ Forensic Governance Agent: Native Google Grounding")
+st.title("🛡️ Forensic Governance Agent: Google Grounding")
 
 # --- AUTH ---
 try:
@@ -14,29 +14,27 @@ except:
 
 # --- CORE AUDIT ENGINE ---
 def run_native_search_audit(ticker):
-    # Using gemini-2.0-flash or gemini-2.5-flash which perfectly support native web grounding
-    # We pass tools="google_search" to give it direct, unblockable access to the live internet
     try:
+        # Correctly passing google_search as a tool object to bypass the validation error
         model = genai.GenerativeModel(
             model_name="models/gemini-2.0-flash",
-            tools="google_search"
+            tools=[{"google_search": {}}]
         )
         
         prompt = f"""
-        Perform a professional forensic governance audit for the ticker/company: {ticker}.
-        Use your live Google Search tool to find their official Board of Directors and Key Managerial Personnel (KMP) list.
+        Perform a professional forensic governance audit for the company/ticker: {ticker}.
+        Use your live Google Search tool to look up their current Board of Directors and Key Managerial Personnel (KMP).
         
-        Look across high-quality financial platforms (Screener.in, Moneycontrol, Yahoo Finance, or the official Corporate website).
+        Search high-quality financial websites like Screener.in, Moneycontrol, Yahoo Finance, or the official company Investor Relations page.
         
         TASK:
-        Populate the exact table format below. If information for a cell cannot be found anywhere, use "N/A". 
-        Do not output an empty table. Find at least the primary executive directors (CEO, MD, Chairman).
+        Populate the exact 5-column Markdown table format below. If information for a cell cannot be found anywhere, use "N/A". Find at least the main executive directors (like CEO, MD, or Chairman).
         
         REQUIRED FORMAT:
         | Name of Management | Designation | Relevant Info (Age/Tenure/Qual) | Political Connections | Involvement in Fraud/Litigation |
         | --- | --- | --- | --- | --- |
         
-        After the table, provide a 'Forensic Risk Verdict' summarizing any corporate governance flags.
+        After the table, provide a 'Forensic Risk Verdict' summarizing any corporate governance flags or red flags found during the evaluation.
         """
         
         response = model.generate_content(prompt)
@@ -45,12 +43,12 @@ def run_native_search_audit(ticker):
         return f"Execution Error: {str(e)}"
 
 # --- UI ---
-ticker_input = st.text_input("Enter Company Name or Ticker (e.g., Reliance Industries, INFOSYS, or RELIANCE.NS):")
+ticker_input = st.text_input("Enter Company Name or Ticker (e.g., Reliance Industries, Infosys, TATA Motors):")
 
 if st.button("Run Forensic Audit"):
     if not ticker_input:
         st.error("Please enter a company name or ticker.")
     else:
-        with st.spinner(f"Gemini is browsing Google natively to audit {ticker_input}..."):
+        with st.spinner(f"Gemini is natively browsing Google to compile the audit for {ticker_input}..."):
             result = run_native_search_audit(ticker_input)
             st.markdown(result)

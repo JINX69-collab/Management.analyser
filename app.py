@@ -1,6 +1,7 @@
 import streamlit as st
 import google.generativeai as genai
 import yfinance as yf
+from google.api_core.exceptions import ResourceExhausted
 
 st.set_page_config(page_title="Forensic Governance Audit", layout="wide")
 st.title("🛡️ Forensic Governance Agent: Financial API")
@@ -18,7 +19,6 @@ def get_management_data(ticker):
     """Pulls exact management data directly from Yahoo's backend database."""
     try:
         stock = yf.Ticker(ticker)
-        # Directly accesses the backend array containing executives
         officers = stock.info.get("companyOfficers", [])
         
         if not officers:
@@ -37,8 +37,8 @@ def get_management_data(ticker):
 
 # --- OFFLINE GEMINI ANALYZER (Bypasses Quota Limits) ---
 def run_audit(context, ticker):
-    # Standard generation. NO search tools = NO 429 Quota Blocks!
-    model = genai.GenerativeModel("models/gemini-2.0-flash")
+    # Using gemini-1.5-flash. It has a generous free tier (1,500 requests/day).
+    model = genai.GenerativeModel("models/gemini-1.5-flash")
     
     prompt = f"""
     You are a forensic auditor. Convert the following official raw data into our governance table.
@@ -57,7 +57,12 @@ def run_audit(context, ticker):
     After the table, write a brief 'Forensic Risk Verdict' summarizing the team structure based on the extracted data.
     """
     
-    return model.generate_content(prompt).text
+    try:
+        return model.generate_content(prompt).text
+    except ResourceExhausted:
+        return "⚠️ **ERROR: Gemini API Quota Exceeded.** You have hit the rate limit for this API key. Please wait 1 minute and try again."
+    except Exception as e:
+        return f"⚠️ **GENERATION ERROR:** {str(e)}"
 
 # --- UI ---
 st.info("💡 Ticker Rules: Use exact Yahoo Finance symbols. Add **.NS** for Indian stocks (e.g., RELIANCE.NS, INFY.NS)")

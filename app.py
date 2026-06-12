@@ -6,7 +6,7 @@ import logging
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Forensic Governance Agent", layout="wide")
-st.title("🛡️ Phase 1: Management Profile & Integrity")
+st.title("🛡️ Forensic Governance & Valuation Agent")
 
 # --- AUTOMATIC API AUTH ---
 try:
@@ -18,11 +18,15 @@ except Exception:
 # --- DATA GATHERING (PDF or WEB) ---
 def extract_pdf_content(pdf_file):
     if pdf_file is None: return None
-    with pdfplumber.open(pdf_file) as pdf:
-        return "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
+    try:
+        with pdfplumber.open(pdf_file) as pdf:
+            # Extract text from all pages
+            return "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
+    except Exception as e:
+        return f"Error reading PDF: {e}"
 
 def search_management_info(ticker):
-    """Searches the web for management data and regulatory news."""
+    """Searches the web for management data."""
     try:
         query = f"{ticker} company board of directors management team SEBI MCA fraud litigation news"
         results = DDGS().text(query, max_results=5)
@@ -33,26 +37,28 @@ def search_management_info(ticker):
 # --- ANALYSIS ENGINE ---
 def run_management_audit(context_data, api_key):
     genai.configure(api_key=api_key)
-    # Using the confirmed working model
+    # Using the verified model
     model = genai.GenerativeModel("models/gemini-3.5-flash")
     
+    # We now instruct the AI to be a "Section Auditor" to fix the "NOT DISCLOSED" issue
     prompt = f"""
-    You are a professional Forensic Auditor. Analyze the provided context (either PDF or Web Search Results).
+    You are a Lead Forensic Auditor. Your goal is to extract Management data from the following Annual Report content.
+    
+    CRITICAL INSTRUCTION: 
+    1. Search specifically for sections titled: 'Corporate Governance Report', 'Directors' Report', 'Board of Directors', or 'Key Managerial Personnel'.
+    2. Extract management details ONLY from those sections. 
+    3. If you do not see these sections, state "SECTION NOT FOUND, CHECKING GENERAL TEXT" and proceed to scan the rest.
     
     CONTEXT DATA: 
-    {context_data}
+    {context_data[:300000]} 
     
-    Your task:
-    1. Identify all KMPs, CEO, MD, and Directors.
-    2. Populate a Markdown table based strictly on the provided context.
-    
-    REQUIRED TABLE COLUMNS:
+    TASK: Populate this table:
     | Name of Management | Designation | Relevant Info (Age/Qual/Tenure) | Political Connections | Involvement in Fraud/Litigation |
     
-    INSTRUCTIONS:
-    - If any data is missing for a specific person or column, write "DATA NOT DISCLOSED".
-    - After the table, write a 'Forensic Risk Verdict' summarizing any red flags found in the data.
+    If any cell remains empty because the report does not mention it, explicitly write "NOT DISCLOSED". 
+    Do not skip people. If a name is mentioned in the Board list, it must be in the table.
     """
+    
     response = model.generate_content(prompt)
     return response.text
 
@@ -64,15 +70,15 @@ if st.sidebar.button("Run Phase 1 Audit"):
     if not ticker:
         st.error("Please provide a Ticker symbol.")
     else:
-        with st.spinner("Gathering data..."):
-            # Logic: PDF first, then Web
+        with st.spinner("Gathering and analyzing data..."):
             if uploaded_file:
                 context = extract_pdf_content(uploaded_file)
-                st.info("Using PDF document as source...")
+                st.info("Reading PDF document...")
             else:
                 context = search_management_info(ticker)
-                st.info("No PDF detected. Searching live web for management data...")
+                st.info("Searching live web for management data...")
             
-            # This line now aligns correctly with the indentation rules
+            # This is the line that caused the indentation error previously
+            # It is now correctly indented inside the 'with' block
             result = run_management_audit(context, API_KEY)
             st.markdown(result)

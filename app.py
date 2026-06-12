@@ -2,79 +2,99 @@ import streamlit as st
 import google.generativeai as genai
 import yfinance as yf
 
-st.set_page_config(page_title="Forensic Governance Audit", layout="wide")
-st.title("🛡️ Forensic Governance Agent: Remuneration & Growth")
+st.set_page_config(page_title="Flagship Forensic Governance Agent", layout="wide")
+st.title("🛡️ Flagship Forensic Governance Agent")
+st.subheader("Multi-Table Modular Audit for PDF Export Processing")
 
 # --- AUTH ---
 try:
     API_KEY = st.secrets["GEMINI_API_KEY"]
     genai.configure(api_key=API_KEY)
-except:
+except Exception:
     st.error("Please set GEMINI_API_KEY in Streamlit Secrets.")
     st.stop()
 
-# --- OFFICIAL YAHOO FINANCE DATA FEED ---
-def get_company_data(ticker):
-    """Pulls management and 5-year financial data from Yahoo's backend."""
+# --- FLAGSHIP UNIFIED DATA FEED ---
+def get_comprehensive_company_data(ticker):
+    """Extracts raw management profiles, operational data, and 5-year financials."""
     try:
         stock = yf.Ticker(ticker)
         
-        # 1. Management Data Extraction
-        officers = stock.info.get("companyOfficers", [])
-        mgmt_text = "MANAGEMENT LIST FOUND IN DATABASE:\n"
+        # 1. Core Corporate Info
+        info_dict = stock.info
+        long_summary = info_dict.get("longBusinessSummary", "No corporate summary available.")
+        
+        # 2. Executive Roster & Compensation
+        officers = info_dict.get("companyOfficers", [])
+        mgmt_text = "--- OFFICIAL MANAGEMENT DATA SEED ---\n"
         if not officers:
-            mgmt_text += "No management data found.\n"
+            mgmt_text += "No structured officer database found.\n"
         else:
             for person in officers:
                 name = person.get('name', 'N/A')
                 title = person.get('title', 'N/A')
+                age = person.get('age', 'N/A')
                 pay = person.get('totalPay', 'N/A')
-                mgmt_text += f"- Name: {name} | Designation: {title} | Pay: {pay}\n"
+                mgmt_text += f"Officer Name: {name} | Designation: {title} | Age: {age} | Disclosed Pay: {pay}\n"
                 
-        # 2. Historical Financials Extraction (Past 5 Years)
+        # 3. 5-Year Financial Statements History
         financials = stock.financials
-        fin_text = "FINANCIAL STATEMENT DATA (Revenue & Income):\n"
+        fin_text = "--- 5-YEAR FINANCIAL HISTORICAL STATEMENT ---\n"
         if not financials.empty:
-            # Grabs the top rows (Total Revenue, Net Income) for the available years
-            fin_text += financials.iloc[:15, :5].to_string()
+            fin_text += financials.iloc[:20, :5].to_string()
         else:
-            fin_text += "No financial statements available in DB."
+            fin_text += "Historical financial statements missing or unavailable in database.\n"
 
-        return f"{mgmt_text}\n\n{fin_text}"
+        return f"CORPORATE SUMMARY:\n{long_summary}\n\n{mgmt_text}\n\n{fin_text}"
         
     except Exception as e:
-        return f"ERROR: {str(e)}"
+        return f"API_ERROR: {str(e)}"
 
-# --- FORENSIC AI ANALYZER ---
-def run_advanced_audit(context, ticker):
+# --- COGNITIVE FORENSIC ANALYSIS ENGINE ---
+def run_flagship_forensic_audit(context, ticker):
+    """Processes all corporate and financial seeds to output four distinct, clean forensic tables."""
     model = genai.GenerativeModel("gemini-2.5-flash")
     
     prompt = f"""
-    You are a forensic auditor. Analyze the following official raw data for {ticker}.
+    You are a Lead Forensic Auditor compiling a modular governance assessment for the target entity: {ticker}.
     
-    RAW DATA:
+    Use the following verified raw database seeds to analyze the company's architecture:
     {context}
     
     INSTRUCTIONS:
-    Provide exactly TWO Markdown tables. Do not output empty tables. If exact data (like median employee pay or peer ratios) is missing from the raw text, use your industry knowledge to provide highly realistic estimates marked with an asterisk (*).
+    Generate exactly FOUR separate, clean Markdown tables. Do not combine tables or leave out details. If a specific structural data point (e.g., explicit political exposure, localized corporate fraud litigation, employee median baselines, or specific competitor peer names/metrics) is not fully detailed in the raw data seed, use your extensive financial market knowledge and regional database patterns to calculate and inject realistic forensic estimations. Mark estimations with an asterisk (*).
     
-    TABLE 1: Remuneration Analysis
-    - Extract all management names and individual remunerations.
-    - Calculate the Median Remuneration of the Management team.
-    - Provide the estimated Median Remuneration for the company's Employees.
-    - Calculate the Ratio of Management Median to Employee Median.
-    - Provide the estimated Average Ratio for the Top 10 Industry Peers of this company.
+    ---
     
-    Columns: | Name | Designation | Individual Remuneration | Mgmt Median | Employee Median | Mgmt/Employee Ratio | Top 10 Peers Ratio |
+    ### 1. MANAGEMENT ANALYSIS TABLE
+    Purpose: Audit the baseline background, background qualifications, external exposure, and litigation history of all listed leadership.
+    Columns: | Name of Management | Designation | Relevant Info (Age/Qual/Tenure) | Political Connections / Conflict of Interest | Involvement in Fraud / Corporate Litigation History |
     
-    TABLE 2: Historical Growth Trends (Past 5 Years)
-    - Using the Raw Financial Data, calculate the Sales (Revenue) Growth and Profit (Net Income) Growth year-over-year.
-    - Provide the estimated Employee Remuneration Growth and Management Remuneration Growth for those same years.
+    ### 2. REMUNERATION ANALYSIS TABLE
+    Purpose: Map individual executive compensation and compute baseline internal spreads against standard workforce baselines. Do not include peer averages in this table.
+    - Extract all leadership names and individual pay scales.
+    - Compute the mathematical Median Remuneration of the Management cohort.
+    - Derive the estimated Median Remuneration for standard Employees within this specific industry/tier.
+    - Calculate the absolute Ratio of Management Median to Employee Median.
+    Columns: | Name | Designation | Individual Remuneration | Management Median | Employee Median* | Management/Employee Ratio* |
     
-    Columns: | Year | Sales Growth (%) | Profit Growth (%) | Employee Remuneration Growth (%) | Mgmt Remuneration Growth (%) |
+    ### 3. PEER REMUNERATION COMPARISON TABLE
+    Purpose: Provide a direct, name-by-name benchmarking breakdown of the top 10 closest sector peers in the market. 
+    - List 10 major industry peers line-by-line by their actual corporate names.
+    - Provide their corresponding estimated Management-to-Employee Remuneration Ratios.
+    - CRITICAL: At the absolute bottom/last row of this table, add the target company ({ticker}) for immediate cross-comparison.
+    Columns: | Company Name | Sector/Industry | Management/Employee Remuneration Ratio* |
     
-    FORENSIC VERDICT:
-    After the tables, write a brief verdict summarizing whether management compensation aligns fairly with the company's 5-year profit and sales growth, or if it represents a red flag.
+    ### 4. 5-YEAR HISTORICAL GROWTH & COMPENSATION TRENDS TABLE
+    Purpose: Cross-examine business performance trajectory directly against corporate wage expansion to track potential rent-seeking behaviors.
+    - Extract year-over-year percentage shifts across Sales (Revenue) and Profit (Net Income) using the financial data.
+    - Populate matching annual timeline percentage changes for broader Employee Remuneration Growth and top-tier Management Remuneration Growth.
+    Columns: | Financial Year | Sales Growth (%) | Profit Growth (%) | Employee Remuneration Growth (%)* | Management Remuneration Growth (%)* |
+    
+    ---
+    
+    ### FORENSIC RISK VERDICT
+    Provide a concise summary evaluating discrepancies across these 4 standalone modules, highlighting structural governance anomalies or compensation misalignment.
     """
     
     try:
@@ -82,21 +102,35 @@ def run_advanced_audit(context, ticker):
     except Exception as e:
         return f"⚠️ **GENERATION ERROR:** {str(e)}"
 
-# --- UI ---
-st.info("💡 Ticker Rules: Use exact Yahoo Finance symbols. Add **.NS** for Indian stocks (e.g., RELIANCE.NS, INFY.NS)")
+# --- USER INTERFACE ---
+st.info("💡 Flagship Settings: Enter exact exchange identifiers. For Indian equity markets, append **.NS** or **.BO** (e.g., RELIANCE.NS, TCS.NS).")
 
-ticker_input = st.text_input("Enter Ticker:", value="RELIANCE.NS")
+mode = st.radio("Select Analytical Processing Feed:", ["Direct Financial API (Automated Live Feed)", "Raw Text Overwrite (Manual Corporate Filing Paste)"])
 
-if st.button("Run Advanced Remuneration Audit"):
-    if not ticker_input:
-        st.error("Please enter a ticker.")
-    else:
-        with st.spinner(f"Pulling Management & Financial APIs for {ticker_input}..."):
-            data = get_company_data(ticker_input)
-            
-            if "ERROR" in data:
-                st.error(f"API Error: {data}")
-            else:
-                with st.spinner("Calculating ratios and structuring tables..."):
-                    result = run_advanced_audit(data, ticker_input)
-                    st.markdown(result)
+if mode == "Direct Financial API (Automated Live Feed)":
+    ticker_input = st.text_input("Enter Corporate Ticker Token:", value="RELIANCE.NS")
+    if st.button("Execute Flagship Forensic Audit"):
+        if not ticker_input:
+            st.error("Please enter a valid ticker token.")
+        else:
+            with st.spinner(f"Extracting live regulatory and financial data layers for {ticker_input}..."):
+                company_context = get_comprehensive_company_data(ticker_input)
+                
+                if "API_ERROR" in company_context:
+                    st.error(f"Upstream Data Pull Failed: {company_context}")
+                elif "NO_DATA" in company_context:
+                    st.error("The data provider returned an empty set for this asset profile. Please verify token format.")
+                else:
+                    with st.spinner("Synthesizing metrics and constructing master multi-table audit..."):
+                        audit_output = run_flagship_forensic_audit(company_context, ticker_input)
+                        st.markdown(audit_output)
+                
+else:
+    raw_filing_paste = st.text_area("Paste unstructured textual filings (e.g., Corporate Governance Reports, BSE Announcements, PDF sections):", height=300)
+    if st.button("Compile Master Tables from Custom Paste"):
+        if not raw_filing_paste:
+            st.error("Input area is empty. Please supply text context to execute analysis.")
+        else:
+            with st.spinner("Parsing text fields and aligning historical vectors..."):
+                audit_output = run_flagship_forensic_audit(raw_filing_paste, "Custom Context Dataset")
+                st.markdown(audit_output)

@@ -20,8 +20,10 @@ def get_comprehensive_company_data(ticker):
     try:
         stock = yf.Ticker(ticker)
         
-        # 1. Core Corporate Info
+        # 1. Core Corporate Info (Sector, Industry, Summary)
         info_dict = stock.info
+        sector = info_dict.get("sector", "N/A")
+        industry = info_dict.get("industry", "N/A")
         long_summary = info_dict.get("longBusinessSummary", "No corporate summary available.")
         
         # 2. Executive Roster & Compensation
@@ -45,7 +47,7 @@ def get_comprehensive_company_data(ticker):
         else:
             fin_text += "Historical financial statements missing or unavailable in database.\n"
 
-        return f"CORPORATE SUMMARY:\n{long_summary}\n\n{mgmt_text}\n\n{fin_text}"
+        return f"TARGET COMPANY PROFILE:\nSector: {sector}\nIndustry: {industry}\nSummary: {long_summary}\n\n{mgmt_text}\n\n{fin_text}"
         
     except Exception as e:
         return f"API_ERROR: {str(e)}"
@@ -72,7 +74,7 @@ def run_flagship_forensic_audit(context, ticker):
     
     ### 2. REMUNERATION ANALYSIS TABLE
     Purpose: Map individual executive compensation and compute baseline internal spreads against standard workforce baselines. Do not include peer averages in this table.
-    - Extract all leadership names and individual pay scales.
+    - Extract all leadership names and exact individual pay scales.
     - Compute the mathematical Median Remuneration of the Management cohort.
     - Derive the estimated Median Remuneration for standard Employees within this specific industry/tier.
     - Calculate the absolute Ratio of Management Median to Employee Median.
@@ -80,7 +82,8 @@ def run_flagship_forensic_audit(context, ticker):
     
     ### 3. PEER REMUNERATION COMPARISON TABLE
     Purpose: Provide a direct, name-by-name benchmarking breakdown of the top 10 closest sector peers in the market. 
-    - List 10 major industry peers line-by-line by their actual corporate names.
+    - CRITICAL SECTOR FILTERING REQUIREMENT: Identify the specific Sector and Industry listed in the Target Company Profile. You must select exactly 10 major peer companies that operate strictly within this exact same sector/industry classification. Do not include cross-sector or generalized diversified peers.
+    - List these 10 distinct industry peers line-by-line by their actual corporate names.
     - Provide their corresponding estimated Management-to-Employee Remuneration Ratios.
     - CRITICAL: At the absolute bottom/last row of this table, add the target company ({ticker}) for immediate cross-comparison.
     Columns: | Company Name | Sector/Industry | Management/Employee Remuneration Ratio* |

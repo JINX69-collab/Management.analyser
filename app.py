@@ -65,6 +65,12 @@ if st.sidebar.button("Run Audit"):
             else:
                 context = search_management_info(ticker)
                 st.info("No PDF detected. Searching live web for management data...")
-            
+   # --- AUTOMATIC AUTHENTICATION ---
+try:
+    # This fetches the key from the Streamlit Cloud Dashboard automatically
+    API_KEY = st.secrets["GEMINI_API_KEY"]
+except Exception:
+    st.error("API Key missing! Please set GEMINI_API_KEY in Streamlit Cloud 'Secrets'.")
+    st.stop()         
             result = run_management_audit(context, api_key)
             st.markdown(result)

@@ -55,7 +55,7 @@ def get_comprehensive_company_data(ticker):
 
 # --- COGNITIVE FORENSIC ANALYSIS ENGINE ---
 def run_flagship_forensic_audit(context, ticker):
-    """Processes all corporate and financial seeds to output five distinct, clean forensic tables."""
+    """Processes all corporate and financial seeds to output eight distinct, clean forensic tables."""
     model = genai.GenerativeModel("gemini-2.5-flash")
     
     prompt = f"""
@@ -65,7 +65,7 @@ def run_flagship_forensic_audit(context, ticker):
     {context}
     
     INSTRUCTIONS:
-    Generate exactly FIVE separate, clean Markdown tables. Do not combine tables or leave out details. If a specific structural data point (e.g., explicit political exposure, localized corporate fraud litigation, employee median baselines, specific competitor peer names/metrics, or precise transactional line items) is not fully detailed in the raw data seed, use your extensive financial market knowledge, regulatory filing patterns, and regional database patterns to calculate and inject realistic forensic estimations. Mark estimations with an asterisk (*).
+    Generate exactly EIGHT separate, clean Markdown tables followed by a final conclusion. Do not combine tables or leave out details. If a specific structural data point (e.g., explicit political exposure, exact CSR spending, exact board meeting attendance, specific competitor peer names/metrics, or precise transactional line items) is not fully detailed in the raw data seed, use your extensive financial market knowledge, regulatory filing patterns, and regional database patterns to calculate and inject realistic forensic estimations based on the company's size and sector. Mark estimations with an asterisk (*).
     
     ---
     
@@ -75,37 +75,46 @@ def run_flagship_forensic_audit(context, ticker):
     
     ### 2. REMUNERATION ANALYSIS TABLE
     Purpose: Map individual executive compensation and compute baseline internal spreads against standard workforce baselines. Do not include peer averages in this table.
-    - Extract all leadership names and exact individual pay scales.
-    - Compute the mathematical Median Remuneration of the Management cohort.
-    - Derive the estimated Median Remuneration for standard Employees within this specific industry/tier.
-    - Calculate the absolute Ratio of Management Median to Employee Median.
     Columns: | Name | Designation | Individual Remuneration | Management Median | Employee Median* | Management/Employee Ratio* |
     
     ### 3. PEER REMUNERATION COMPARISON TABLE
     Purpose: Provide a direct, name-by-name benchmarking breakdown of the top 10 closest sector peers in the market. 
     - CRITICAL SECTOR FILTERING REQUIREMENT: Identify the specific Sector and Industry listed in the Target Company Profile. You must select exactly 10 major peer companies that operate strictly within this exact same sector/industry classification. Do not include cross-sector or generalized diversified peers.
-    - List these 10 distinct industry peers line-by-line by their actual corporate names.
-    - Provide their corresponding estimated Management-to-Employee Remuneration Ratios.
     - CRITICAL: At the absolute bottom/last row of this table, add the target company ({ticker}) for immediate cross-comparison.
     Columns: | Company Name | Sector/Industry | Management/Employee Remuneration Ratio* |
     
     ### 4. 5-YEAR HISTORICAL GROWTH & COMPENSATION TRENDS TABLE
     Purpose: Cross-examine business performance trajectory directly against corporate wage expansion to track potential rent-seeking behaviors.
-    - Extract year-over-year percentage shifts across Sales (Revenue) and Profit (Net Income) using the financial data.
-    - Populate matching annual timeline percentage changes for broader Employee Remuneration Growth and top-tier Management Remuneration Growth.
     Columns: | Financial Year | Sales Growth (%) | Profit Growth (%) | Employee Remuneration Growth (%)* | Management Remuneration Growth (%)* |
     
     ### 5. RELATED PARTY TRANSACTIONS (RPT) AUDIT TABLE
     Purpose: Identify and analyze transactions between the company and its promoters, directors, or key relatives to catch asset siphoning or value diversion.
-    - Analyze transaction types such as: Rent paid on promoter-owned properties, intellectual property/patent royalties paid to promoters, loans given to promoter entities, or key raw material purchases from related entities.
-    - Flag anomalies where transaction growth drastically disconnects from underlying business fundamentals (e.g., *Sales growth is 10%, but rent paid on promoter properties spikes by 50%*).
-    - Note if the promoter holds critical patents, brand rights, or land assets outside the listed entity that structurally affect or create dependence for the main operations of the company.
+    - Note anomalies where transaction growth drastically disconnects from underlying business fundamentals. Note if the promoter holds critical patents or assets outside the listed entity.
     Columns: | Related Party / Entity | Nature of Relationship | Type of Transaction | Annual Value / Growth Trend* | Forensic Assessment & Risk Level (Low/Medium/High) |
+    
+    ### 6. SHAREHOLDING PATTERNS & INSIDER TRADING TABLE
+    Purpose: Map the ownership distribution and track any suspicious insider trading or proxy accumulation by outside entities acting on behalf of insiders.
+    - Break down holdings by Promoters, Foreign Institutional Investors (FII), Domestic Institutions (DII), and Public.
+    - Highlight notable off-market transfers, pledged promoter shares, or suspected proxy front-running.
+    Columns: | Shareholder Category | Current Holding (%)* | 1-Year Change (%)* | Notable Insider Trades / Proxy Activity Flags* | Forensic Risk Assessment |
+    
+    ### 7. BOARD MEETING ATTENDANCE TABLE
+    Purpose: Track director engagement and verify compliance with corporate governance mandates for the financial year.
+    - List the number of meetings held and evaluate if any directors are chronically absent ("sleeping directors").
+    Columns: | Name of Director | Designation | Total Meetings Held in FY* | Meetings Attended* | Attendance Percentage* | Regulatory Compliance Flag |
+    
+    ### 8. CORPORATE SOCIAL RESPONSIBILITY (CSR) FUND UTILIZATION TABLE
+    Purpose: Audit mandatory CSR spending to ensure funds are not being routed back to promoter-affiliated NGOs or shell trusts.
+    - Identify core CSR projects and audit the beneficiaries for potential conflicts of interest.
+    Columns: | Core CSR Project / Sector | Allocated Budget* | Actual Amount Spent* | Unspent Amount Transferred / Deficit* | Forensic Audit of Beneficiary (Conflict of Interest Risk)* |
     
     ---
     
-    ### FORENSIC RISK VERDICT
-    Provide a concise summary evaluating discrepancies across these 5 standalone modules. Focus heavily on linking any remuneration asymmetries with critical anomalies highlighted in the Related Party Transactions matrix.
+    ### FINAL COMPREHENSIVE CONCLUSION & MANAGEMENT COMPETENCY VERDICT
+    Provide a masterful, multi-paragraph final conclusion evaluating the entire report. 
+    1. Summarize the major red flags discovered across all 8 tables.
+    2. Provide a definitive, professional assessment of the **Competency of the Management**. Are they capable, aligned with shareholder interests, or engaging in value extraction/rent-seeking behavior? 
+    3. Give a final "Investment/Governance Risk Grade" (e.g., A, B, C, D, or F) with a concluding justification.
     """
     
     # AUTO-RETRY LOGIC TO PREVENT QUOTA CRASHES
@@ -143,7 +152,7 @@ if mode == "Direct Financial API (Automated Live Feed)":
                 elif "NO_DATA" in company_context:
                     st.error("The data provider returned an empty set for this asset profile. Please verify token format.")
                 else:
-                    with st.spinner("Synthesizing metrics and constructing master 5-table audit..."):
+                    with st.spinner("Synthesizing metrics and constructing master 8-table audit..."):
                         audit_output = run_flagship_forensic_audit(company_context, ticker_input)
                         st.markdown(audit_output)
                 

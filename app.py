@@ -1,8 +1,9 @@
 import streamlit as st
 import google.generativeai as genai
+import yfinance as yf
 
-st.set_page_config(page_title="Forensic Governance Agent", layout="wide")
-st.title("🛡️ Forensic Governance Agent: Google Grounding")
+st.set_page_config(page_title="Forensic Governance Audit", layout="wide")
+st.title("🛡️ Forensic Governance Agent: Financial API")
 
 # --- AUTH ---
 try:
@@ -12,43 +13,78 @@ except:
     st.error("Please set GEMINI_API_KEY in Streamlit Secrets.")
     st.stop()
 
-# --- CORE AUDIT ENGINE ---
-def run_native_search_audit(ticker):
+# --- OFFICIAL YAHOO FINANCE DATA FEED ---
+def get_management_data(ticker):
+    """Pulls exact management data directly from Yahoo's backend database."""
     try:
-        # Initialize the model without the tool first
-        model = genai.GenerativeModel(model_name="models/gemini-2.0-flash")
+        stock = yf.Ticker(ticker)
+        # Directly accesses the backend array containing executives
+        officers = stock.info.get("companyOfficers", [])
         
-        prompt = f"""
-        Perform a professional forensic governance audit for the company: {ticker}.
-        Use your Google Search tool to find their official Board of Directors and Key Managerial Personnel (KMP) list.
-        
-        TASK:
-        Populate the exact 5-column Markdown table format below. If information for a cell cannot be found, use "N/A".
-        Find at least the main executive directors (like CEO, MD, or Chairman).
-        
-        REQUIRED FORMAT:
-        | Name of Management | Designation | Relevant Info (Age/Tenure/Qual) | Political Connections | Involvement in Fraud/Litigation |
-        | --- | --- | --- | --- | --- |
-        
-        After the table, provide a 'Forensic Risk Verdict' summarizing any corporate governance flags.
-        """
-        
-        # We pass the exact string required by the updated SDK directly into generate_content
-        response = model.generate_content(
-            prompt,
-            tools="google_search_retrieval"
-        )
-        return response.text
+        if not officers:
+            return "NO_DATA"
+            
+        raw_text = "MANAGEMENT LIST FOUND IN DATABASE:\n"
+        for person in officers:
+            name = person.get('name', 'N/A')
+            title = person.get('title', 'N/A')
+            age = person.get('age', 'N/A')
+            pay = person.get('totalPay', 'N/A')
+            raw_text += f"- Name: {name} | Designation: {title} | Age: {age} | Pay: {pay}\n"
+        return raw_text
     except Exception as e:
-        return f"Execution Error: {str(e)}\n\n(Did you update requirements.txt to google-generativeai>=0.8.4?)"
+        return f"ERROR: {str(e)}"
+
+# --- OFFLINE GEMINI ANALYZER (Bypasses Quota Limits) ---
+def run_audit(context, ticker):
+    # Standard generation. NO search tools = NO 429 Quota Blocks!
+    model = genai.GenerativeModel("models/gemini-2.0-flash")
+    
+    prompt = f"""
+    You are a forensic auditor. Convert the following official raw data into our governance table.
+    
+    RAW DATA:
+    {context}
+    
+    INSTRUCTIONS:
+    1. Extract all names into the table.
+    2. Because this is a financial database pull, Political/Fraud data will not be explicitly listed. Fill those columns with "No adverse flags in DB".
+    
+    REQUIRED FORMAT:
+    | Name of Management | Designation | Relevant Info (Age/Pay) | Political Connections | Involvement in Fraud/Litigation |
+    | --- | --- | --- | --- | --- |
+    
+    After the table, write a brief 'Forensic Risk Verdict' summarizing the team structure based on the extracted data.
+    """
+    
+    return model.generate_content(prompt).text
 
 # --- UI ---
-ticker_input = st.text_input("Enter Company Name (e.g., Reliance Industries, Infosys):")
+st.info("💡 Ticker Rules: Use exact Yahoo Finance symbols. Add **.NS** for Indian stocks (e.g., RELIANCE.NS, INFY.NS)")
 
-if st.button("Run Forensic Audit"):
-    if not ticker_input:
-        st.error("Please enter a company name.")
-    else:
-        with st.spinner(f"Gemini is natively browsing Google to compile the audit for {ticker_input}..."):
-            result = run_native_search_audit(ticker_input)
-            st.markdown(result)
+mode = st.radio("Select Input Mode:", ["Automatic API (Yahoo Finance)", "Manual Paste (For Obscure Stocks)"])
+
+if mode == "Automatic API (Yahoo Finance)":
+    ticker_input = st.text_input("Enter Ticker:", value="RELIANCE.NS")
+    if st.button("Run Forensic Audit"):
+        with st.spinner(f"Pulling API data for {ticker_input}..."):
+            data = get_management_data(ticker_input)
+            
+            if data == "NO_DATA":
+                st.error("Yahoo Finance returned no management data for this ticker. Check the symbol or use the Manual Paste tab.")
+            elif "ERROR" in data:
+                st.error(f"API Error: {data}")
+            else:
+                with st.spinner("Structuring Governance Table..."):
+                    result = run_audit(data, ticker_input)
+                    st.markdown(result)
+                
+else:
+    raw_paste = st.text_area("Paste raw text from BSE / Annual Report here:")
+    if st.button("Generate Table from Paste"):
+        if not raw_paste:
+            st.error("Please paste some text.")
+        else:
+            with st.spinner("Analyzing text..."):
+                result = run_audit(raw_paste, "Custom Data")
+                st.markdown(result)

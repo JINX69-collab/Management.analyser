@@ -1,7 +1,6 @@
 import streamlit as st
 import google.generativeai as genai
 import yfinance as yf
-from google.api_core.exceptions import ResourceExhausted
 
 st.set_page_config(page_title="Forensic Governance Audit", layout="wide")
 st.title("🛡️ Forensic Governance Agent: Financial API")
@@ -35,10 +34,10 @@ def get_management_data(ticker):
     except Exception as e:
         return f"ERROR: {str(e)}"
 
-# --- OFFLINE GEMINI ANALYZER (Bypasses Quota Limits) ---
+# --- OFFLINE GEMINI ANALYZER ---
 def run_audit(context, ticker):
-    # Using gemini-1.5-flash. It has a generous free tier (1,500 requests/day).
-    model = genai.GenerativeModel("models/gemini-1.5-flash")
+    # USING THE CORRECT, ACTIVE FREE TIER MODEL FOR 2026
+    model = genai.GenerativeModel("gemini-2.5-flash")
     
     prompt = f"""
     You are a forensic auditor. Convert the following official raw data into our governance table.
@@ -59,8 +58,6 @@ def run_audit(context, ticker):
     
     try:
         return model.generate_content(prompt).text
-    except ResourceExhausted:
-        return "⚠️ **ERROR: Gemini API Quota Exceeded.** You have hit the rate limit for this API key. Please wait 1 minute and try again."
     except Exception as e:
         return f"⚠️ **GENERATION ERROR:** {str(e)}"
 

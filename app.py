@@ -6,7 +6,14 @@ import logging
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Forensic Governance Agent", layout="wide")
-st.title("🛡️ Management Integrity: Web-Enabled Audit")
+st.title("🛡️ Phase 1: Management Profile & Integrity")
+
+# --- AUTOMATIC API AUTH ---
+try:
+    API_KEY = st.secrets["GEMINI_API_KEY"]
+except Exception:
+    st.error("API Key missing! Please set GEMINI_API_KEY in Streamlit Cloud 'Secrets'.")
+    st.stop()
 
 # --- DATA GATHERING (PDF or WEB) ---
 def extract_pdf_content(pdf_file):
@@ -26,6 +33,7 @@ def search_management_info(ticker):
 # --- ANALYSIS ENGINE ---
 def run_management_audit(context_data, api_key):
     genai.configure(api_key=api_key)
+    # Using the confirmed working model
     model = genai.GenerativeModel("models/gemini-3.5-flash")
     
     prompt = f"""
@@ -36,41 +44,35 @@ def run_management_audit(context_data, api_key):
     
     Your task:
     1. Identify all KMPs, CEO, MD, and Directors.
-    2. Populate the table based strictly on the provided context.
+    2. Populate a Markdown table based strictly on the provided context.
     
     REQUIRED TABLE COLUMNS:
     | Name of Management | Designation | Relevant Info (Age/Qual/Tenure) | Political Connections | Involvement in Fraud/Litigation |
     
     INSTRUCTIONS:
-    - If any data is missing, write "DATA NOT DISCLOSED".
+    - If any data is missing for a specific person or column, write "DATA NOT DISCLOSED".
     - After the table, write a 'Forensic Risk Verdict' summarizing any red flags found in the data.
     """
     response = model.generate_content(prompt)
     return response.text
 
 # --- UI & LOGIC ---
-api_key = st.sidebar.text_input("Enter Gemini API Key:", type="password")
 ticker = st.sidebar.text_input("Enter Ticker (e.g., RELIANCE.NS):")
 uploaded_file = st.sidebar.file_uploader("Upload Annual Report (Optional)", type=["pdf"])
 
-if st.sidebar.button("Run Audit"):
-    if not api_key or not ticker:
-        st.error("API Key and Ticker are required.")
+if st.sidebar.button("Run Phase 1 Audit"):
+    if not ticker:
+        st.error("Please provide a Ticker symbol.")
     else:
         with st.spinner("Gathering data..."):
             # Logic: PDF first, then Web
             if uploaded_file:
                 context = extract_pdf_content(uploaded_file)
-                st.info("Using PDF document...")
+                st.info("Using PDF document as source...")
             else:
                 context = search_management_info(ticker)
                 st.info("No PDF detected. Searching live web for management data...")
-   # --- AUTOMATIC AUTHENTICATION ---
-try:
-    # This fetches the key from the Streamlit Cloud Dashboard automatically
-    API_KEY = st.secrets["GEMINI_API_KEY"]
-except Exception:
-    st.error("API Key missing! Please set GEMINI_API_KEY in Streamlit Cloud 'Secrets'.")
-    st.stop()         
-            result = run_management_audit(context, api_key)
+            
+            # This line now aligns correctly with the indentation rules
+            result = run_management_audit(context, API_KEY)
             st.markdown(result)

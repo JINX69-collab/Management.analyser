@@ -1,9 +1,9 @@
 import streamlit as st
-import requests
 import google.generativeai as genai
+from duckduckgo_search import DDGS
 
 st.set_page_config(page_title="Forensic Governance Agent", layout="wide")
-st.title("🛡️ Forensic Governance Agent: Official Site Reader")
+st.title("🛡️ Forensic Governance Agent: BSE Regulatory Mode")
 
 # --- AUTH ---
 try:
@@ -12,52 +12,57 @@ except:
     st.error("Set GEMINI_API_KEY in Secrets.")
     st.stop()
 
-# --- THE "HINDRANCE-FREE" ENGINE ---
-def read_official_site(url):
+# --- REGULATORY SEARCH ENGINE ---
+def search_bse_filings(ticker):
     """
-    Uses Jina Reader to bypass firewalls and convert the 
-    official corporate page into clean text.
+    Forces the agent to look ONLY at BSE India regulatory filings 
+    where management disclosures are legally mandatory.
     """
-    # The prefix 'https://r.jina.ai/' is the key that bypasses bot blockers
-    jina_url = f"https://r.jina.ai/{url}"
+    # This query targets the official 'Corporate Governance' reports on BSE
+    query = f"site:bseindia.com {ticker} 'Corporate Governance Report' list of directors key managerial personnel"
     try:
-        response = requests.get(jina_url, timeout=30)
-        if response.status_code == 200:
-            return response.text
-        else:
-            return "ERROR: Could not access site. URL might be blocked."
+        results = DDGS().text(query, max_results=3)
+        # Combine the body text from the official announcements
+        return "\n".join([r.get('body', '') for r in results])
     except Exception as e:
-        return f"Error: {e}"
+        return f"Regulatory Search Error: {str(e)}"
 
-def run_audit(text, api_key):
+# --- FORENSIC AUDIT ENGINE ---
+def run_forensic_analysis(context, ticker, api_key):
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel("models/gemini-3.5-flash")
     
     prompt = f"""
-    You are a forensic auditor. Use the provided text from the official company website 
-    to populate the governance table.
+    You are a Lead Forensic Auditor. Your task is to extract management data from OFFICIAL BSE REGULATORY FILINGS.
     
-    TEXT FROM WEBSITE:
-    {text[:150000]}
+    CONTEXT DATA:
+    {context[:150000]}
     
-    TASK: 
-    1. Extract all Directors/KMPs.
-    2. Format into table: | Name | Designation | Info | Political | Fraud/Litigation |
-    3. Use "N/A" if info is missing.
+    TASK: Populate the table. 
+    1. Extract Names, Designations, and Committee roles from the text.
+    2. If information is missing (e.g. Political/Fraud), use 'N/A' (Do not write 'NOT DISCLOSED').
+    3. If the data is not in the text, you MUST state "DATA NOT FOUND IN BSE FILINGS".
+    
+    TABLE FORMAT:
+    | Name of Management | Designation | Committee/Role | Political/Conflict | Fraud/Litigation History |
+    | --- | --- | --- | --- | --- |
+    
+    FORENSIC RISK VERDICT:
+    Summarize any independence concerns or red flags (e.g., family dominance, frequent KMP turnover).
     """
     return model.generate_content(prompt).text
 
 # --- UI ---
-# PRO-TIP: You can find these links easily on Google: 'RELIANCE industries investor relations'
-target_url = st.text_input("Paste the Official Investor Relations URL (e.g., https://www.ril.com/investor-relations/):")
-
-if st.button("Read & Analyze Official Site"):
-    if not target_url:
-        st.error("Please provide a valid URL.")
+ticker = st.text_input("Enter Ticker (e.g., RELIANCE.NS or 500325):")
+if st.button("Run Forensic Audit"):
+    if not ticker:
+        st.error("Please enter a ticker.")
     else:
-        with st.spinner("Bypassing corporate firewall and reading site..."):
-            site_content = read_official_site(target_url)
-            if "ERROR" in site_content:
-                st.error(site_content)
+        with st.spinner("Accessing BSE Regulatory Filings..."):
+            context = search_bse_filings(ticker)
+            
+            if len(context) < 100:
+                st.error("No governance filings found. The ticker might be incorrect, or the company hasn't filed recent disclosures on BSE.")
             else:
-                st.markdown(run_audit(site_content, API_KEY))
+                result = run_forensic_analysis(context, ticker, API_KEY)
+                st.markdown(result)

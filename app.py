@@ -21,11 +21,13 @@ def get_comprehensive_company_data(ticker):
     try:
         stock = yf.Ticker(ticker)
         
+        # 1. Core Corporate Info (Sector, Industry, Summary)
         info_dict = stock.info
         sector = info_dict.get("sector", "N/A")
         industry = info_dict.get("industry", "N/A")
         long_summary = info_dict.get("longBusinessSummary", "No corporate summary available.")
         
+        # 2. Executive Roster & Compensation
         officers = info_dict.get("companyOfficers", [])
         mgmt_text = "--- OFFICIAL MANAGEMENT DATA SEED ---\n"
         if not officers:
@@ -38,6 +40,7 @@ def get_comprehensive_company_data(ticker):
                 pay = person.get('totalPay', 'N/A')
                 mgmt_text += f"Officer Name: {name} | Designation: {title} | Age: {age} | Disclosed Pay: {pay}\n"
                 
+        # 3. 5-Year Financial Statements History
         financials = stock.financials
         fin_text = "--- 5-YEAR FINANCIAL HISTORICAL STATEMENT ---\n"
         if not financials.empty:
@@ -52,7 +55,7 @@ def get_comprehensive_company_data(ticker):
 
 # --- COGNITIVE FORENSIC ANALYSIS ENGINE ---
 def run_flagship_forensic_audit(context, ticker):
-    """Processes all seeds to output 4 distinct tables. Includes Auto-Retry for Rate Limits."""
+    """Processes all corporate and financial seeds to output five distinct, clean forensic tables."""
     model = genai.GenerativeModel("gemini-2.5-flash")
     
     prompt = f"""
@@ -62,7 +65,7 @@ def run_flagship_forensic_audit(context, ticker):
     {context}
     
     INSTRUCTIONS:
-    Generate exactly FOUR separate, clean Markdown tables. Do not combine tables or leave out details. If a specific structural data point is not fully detailed in the raw data seed, use your extensive financial market knowledge and regional database patterns to calculate and inject realistic forensic estimations. Mark estimations with an asterisk (*).
+    Generate exactly FIVE separate, clean Markdown tables. Do not combine tables or leave out details. If a specific structural data point (e.g., explicit political exposure, localized corporate fraud litigation, employee median baselines, specific competitor peer names/metrics, or precise transactional line items) is not fully detailed in the raw data seed, use your extensive financial market knowledge, regulatory filing patterns, and regional database patterns to calculate and inject realistic forensic estimations. Mark estimations with an asterisk (*).
     
     ---
     
@@ -92,10 +95,17 @@ def run_flagship_forensic_audit(context, ticker):
     - Populate matching annual timeline percentage changes for broader Employee Remuneration Growth and top-tier Management Remuneration Growth.
     Columns: | Financial Year | Sales Growth (%) | Profit Growth (%) | Employee Remuneration Growth (%)* | Management Remuneration Growth (%)* |
     
+    ### 5. RELATED PARTY TRANSACTIONS (RPT) AUDIT TABLE
+    Purpose: Identify and analyze transactions between the company and its promoters, directors, or key relatives to catch asset siphoning or value diversion.
+    - Analyze transaction types such as: Rent paid on promoter-owned properties, intellectual property/patent royalties paid to promoters, loans given to promoter entities, or key raw material purchases from related entities.
+    - Flag anomalies where transaction growth drastically disconnects from underlying business fundamentals (e.g., *Sales growth is 10%, but rent paid on promoter properties spikes by 50%*).
+    - Note if the promoter holds critical patents, brand rights, or land assets outside the listed entity that structurally affect or create dependence for the main operations of the company.
+    Columns: | Related Party / Entity | Nature of Relationship | Type of Transaction | Annual Value / Growth Trend* | Forensic Assessment & Risk Level (Low/Medium/High) |
+    
     ---
     
     ### FORENSIC RISK VERDICT
-    Provide a concise summary evaluating discrepancies across these 4 standalone modules.
+    Provide a concise summary evaluating discrepancies across these 5 standalone modules. Focus heavily on linking any remuneration asymmetries with critical anomalies highlighted in the Related Party Transactions matrix.
     """
     
     # AUTO-RETRY LOGIC TO PREVENT QUOTA CRASHES
@@ -107,7 +117,7 @@ def run_flagship_forensic_audit(context, ticker):
             error_msg = str(e)
             if "429" in error_msg or "Quota" in error_msg:
                 if attempt < max_retries - 1:
-                    time.sleep(20) # Pauses for 20 seconds and tries again automatically
+                    time.sleep(20)
                     continue
                 else:
                     return "⚠️ **SPEED LIMIT REACHED:** Google's Free Tier limits usage to 5 requests per minute. Please wait 60 seconds and click 'Execute' again."
@@ -133,12 +143,12 @@ if mode == "Direct Financial API (Automated Live Feed)":
                 elif "NO_DATA" in company_context:
                     st.error("The data provider returned an empty set for this asset profile. Please verify token format.")
                 else:
-                    with st.spinner("Synthesizing metrics and constructing master multi-table audit... (This may take an extra 20 seconds if rate limit is reached)"):
+                    with st.spinner("Synthesizing metrics and constructing master 5-table audit..."):
                         audit_output = run_flagship_forensic_audit(company_context, ticker_input)
                         st.markdown(audit_output)
                 
 else:
-    raw_filing_paste = st.text_area("Paste unstructured textual filings (e.g., Corporate Governance Reports, BSE Announcements, PDF sections):", height=300)
+    raw_filing_paste = st.text_area("Paste unstructured textual filings (e.g., Related Party Disclosures, Corporate Governance Reports, Annual Reports):", height=300)
     if st.button("Compile Master Tables from Custom Paste"):
         if not raw_filing_paste:
             st.error("Input area is empty. Please supply text context to execute analysis.")

@@ -117,7 +117,6 @@ def run_flagship_forensic_audit(context, ticker):
     3. Give a final "Investment/Governance Risk Grade" (e.g., A, B, C, D, or F) with a concluding justification.
     """
     
-    # AUTO-RETRY LOGIC TO PREVENT QUOTA CRASHES
     max_retries = 3
     for attempt in range(max_retries):
         try:
@@ -154,7 +153,19 @@ if mode == "Direct Financial API (Automated Live Feed)":
                 else:
                     with st.spinner("Synthesizing metrics and constructing master 8-table audit..."):
                         audit_output = run_flagship_forensic_audit(company_context, ticker_input)
+                        
+                        # DISPLAY REPORT
                         st.markdown(audit_output)
+                        
+                        # DOWNLOAD BUTTON
+                        st.divider()
+                        st.success("✅ Audit Complete. Your report is ready.")
+                        st.download_button(
+                            label="📥 Download Forensic Report to Desktop",
+                            data=audit_output,
+                            file_name=f"{ticker_input}_Forensic_Audit_Report.md",
+                            mime="text/markdown"
+                        )
                 
 else:
     raw_filing_paste = st.text_area("Paste unstructured textual filings (e.g., Related Party Disclosures, Corporate Governance Reports, Annual Reports):", height=300)
@@ -164,4 +175,16 @@ else:
         else:
             with st.spinner("Parsing text fields and aligning historical vectors..."):
                 audit_output = run_flagship_forensic_audit(raw_filing_paste, "Custom Context Dataset")
+                
+                # DISPLAY REPORT
                 st.markdown(audit_output)
+                
+                # DOWNLOAD BUTTON
+                st.divider()
+                st.success("✅ Audit Complete. Your report is ready.")
+                st.download_button(
+                    label="📥 Download Forensic Report to Desktop",
+                    data=audit_output,
+                    file_name="Custom_Forensic_Audit_Report.md",
+                    mime="text/markdown"
+                )

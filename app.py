@@ -2,10 +2,12 @@ import streamlit as st
 import google.generativeai as genai
 import yfinance as yf
 import time
+import os
+from markdown_pdf import MarkdownPdf, Section
 
 st.set_page_config(page_title="Flagship Forensic Governance Agent", layout="wide")
 st.title("🛡️ Flagship Forensic Governance Agent")
-st.subheader("Multi-Table Modular Audit for PDF Export Processing")
+st.subheader("Automated PDF Report Generator")
 
 # --- AUTH ---
 try:
@@ -16,11 +18,11 @@ except Exception:
     st.stop()
 
 # --- FLAGSHIP UNIFIED DATA FEED ---
+@st.cache_data(ttl=86400, show_spinner=False)
 def get_comprehensive_company_data(ticker):
     """Extracts raw management profiles, operational data, and 5-year financials."""
     try:
         stock = yf.Ticker(ticker)
-        
         info_dict = stock.info
         sector = info_dict.get("sector", "N/A")
         industry = info_dict.get("industry", "N/A")
@@ -34,165 +36,143 @@ def get_comprehensive_company_data(ticker):
             for person in officers:
                 name = person.get('name', 'N/A')
                 title = person.get('title', 'N/A')
-                age = person.get('age', 'N/A')
                 pay = person.get('totalPay', 'N/A')
-                mgmt_text += f"Officer Name: {name} | Designation: {title} | Age: {age} | Disclosed Pay: {pay}\n"
+                mgmt_text += f"Name: {name} | Designation: {title} | Pay: {pay}\n"
                 
         financials = stock.financials
         fin_text = "--- 5-YEAR FINANCIAL HISTORICAL STATEMENT ---\n"
         if not financials.empty:
             fin_text += financials.iloc[:20, :5].to_string()
         else:
-            fin_text += "Historical financial statements missing or unavailable in database.\n"
+            fin_text += "Historical financial statements missing or unavailable.\n"
 
-        return f"TARGET COMPANY PROFILE:\nSector: {sector}\nIndustry: {industry}\nSummary: {long_summary}\n\n{mgmt_text}\n\n{fin_text}"
+        return f"TARGET PROFILE:\nSector: {sector}\nIndustry: {industry}\nSummary: {long_summary}\n\n{mgmt_text}\n\n{fin_text}"
         
     except Exception as e:
         return f"API_ERROR: {str(e)}"
 
 # --- COGNITIVE FORENSIC ANALYSIS ENGINE ---
+@st.cache_data(ttl=86400, show_spinner=False)
 def run_flagship_forensic_audit(context, ticker):
-    """Generates the 8-table audit prompt and calls the Gemini API."""
+    """Generates the comprehensive forensic audit via Gemini API."""
     model = genai.GenerativeModel("gemini-2.5-flash")
     
     prompt = f"""
-    You are a Lead Forensic Auditor compiling a modular governance assessment for the target entity: {ticker}.
+    You are a Lead Forensic Auditor compiling a governance assessment for the entity: {ticker}.
     
-    Use the following verified raw database seeds to analyze the company's architecture:
+    Use these raw database seeds:
     {context}
     
     INSTRUCTIONS:
-    Generate exactly EIGHT separate, clean Markdown tables followed by a final conclusion. Do not combine tables or leave out details. If a specific structural data point is not fully detailed in the raw data seed, use your extensive financial market knowledge, regulatory filing patterns, and regional database patterns to calculate and inject realistic forensic estimations based on the company's size and sector. Mark estimations with an asterisk (*).
-    
-    ---
+    Generate exactly SIX comprehensive Markdown tables followed by a final conclusion. Use forensic estimations marked with an asterisk (*) if specific data is unavailable.
     
     ### 1. MANAGEMENT ANALYSIS TABLE
-    Columns: | Name of Management | Designation | Relevant Info (Age/Qual/Tenure) | Political Connections / Conflict of Interest | Involvement in Fraud / Corporate Litigation History |
+    Columns: | Name of Management | Designation | Relevant Info | Political Connections / Conflict of Interest | Fraud / Litigation History |
     
     ### 2. REMUNERATION ANALYSIS TABLE
     Columns: | Name | Designation | Individual Remuneration | Management Median | Employee Median* | Management/Employee Ratio* |
     
-    ### 3. PEER REMUNERATION COMPARISON TABLE
-    - CRITICAL SECTOR FILTERING REQUIREMENT: Identify the specific Sector and Industry listed in the Target Company Profile. You must select exactly 10 major peer companies that operate strictly within this exact same sector/industry classification. Do not include cross-sector or generalized diversified peers.
-    - CRITICAL: At the absolute bottom/last row of this table, add the target company ({ticker}) for immediate cross-comparison.
+    ### 3. PEER RATIO COMPARISON TABLE
+    - Select exactly 10 major peer companies in the EXACT same sector/industry. Place {ticker} at the very bottom.
     Columns: | Company Name | Sector/Industry | Management/Employee Remuneration Ratio* |
     
-    ### 4. 5-YEAR HISTORICAL GROWTH & COMPENSATION TRENDS TABLE
-    Columns: | Financial Year | Sales Growth (%) | Profit Growth (%) | Employee Remuneration Growth (%)* | Management Remuneration Growth (%)* |
+    ### 4. RELATED PARTY TRANSACTIONS (RPT) AUDIT TABLE
+    - Detail transactions with promoters/directors and flag anomalies or concerning queries.
+    Columns: | Related Party Entity | Nature of Relationship | Type of Transaction | Annual Value Trend* | Forensic Assessment & Risk Concern |
     
-    ### 5. RELATED PARTY TRANSACTIONS (RPT) AUDIT TABLE
-    - Note anomalies where transaction growth drastically disconnects from underlying business fundamentals. Note if the promoter holds critical patents or assets outside the listed entity.
-    Columns: | Related Party / Entity | Nature of Relationship | Type of Transaction | Annual Value / Growth Trend* | Forensic Assessment & Risk Level (Low/Medium/High) |
+    ### 5. SHAREHOLDING PATTERNS & INSIDER TRADING TABLE
+    - Map ownership (Promoters, FII, DII, Public) and flag proxy activity.
+    Columns: | Shareholder Category | Current Holding (%)* | 1-Year Change (%)* | Notable Insider Trades / Proxy Flags* | Forensic Risk Assessment |
     
-    ### 6. SHAREHOLDING PATTERNS & INSIDER TRADING TABLE
-    - Break down holdings by Promoters, Foreign Institutional Investors (FII), Domestic Institutions (DII), and Public. Highlight notable off-market transfers or pledged promoter shares.
-    Columns: | Shareholder Category | Current Holding (%)* | 1-Year Change (%)* | Notable Insider Trades / Proxy Activity Flags* | Forensic Risk Assessment |
-    
-    ### 7. BOARD MEETING ATTENDANCE TABLE
-    Columns: | Name of Director | Designation | Total Meetings Held in FY* | Meetings Attended* | Attendance Percentage* | Regulatory Compliance Flag |
-    
-    ### 8. CORPORATE SOCIAL RESPONSIBILITY (CSR) FUND UTILIZATION TABLE
-    Columns: | Core CSR Project / Sector | Allocated Budget* | Actual Amount Spent* | Unspent Amount Transferred / Deficit* | Forensic Audit of Beneficiary (Conflict of Interest Risk)* |
+    ### 6. 5-YEAR HISTORICAL GROWTH TRENDS
+    Columns: | Financial Year | Sales Growth (%) | Profit Growth (%) | Employee Remuneration Growth (%)* | Mgmt Remuneration Growth (%)* |
     
     ---
-    
-    ### FINAL COMPREHENSIVE CONCLUSION & MANAGEMENT COMPETENCY VERDICT
-    Provide a masterful, multi-paragraph final conclusion evaluating the entire report. 
-    1. Summarize the major red flags discovered across all 8 tables.
-    2. Provide a definitive, professional assessment of the **Competency of the Management**. Are they capable, aligned with shareholder interests, or engaging in value extraction/rent-seeking behavior? 
-    3. Give a final "Investment/Governance Risk Grade" (e.g., A, B, C, D, or F) with a concluding justification.
+    ### 7. FINAL ANALYSIS OF THE MANAGEMENT (VERDICT)
+    Provide your definitive, professional analysis of the management's competency, ethical alignment, and assign a final Investment/Governance Risk Grade.
     """
     
-    # We remove the try/except here so the queue system can handle the errors directly.
     return model.generate_content(prompt).text
+
+# --- PDF GENERATOR ---
+def create_pdf_document(markdown_text, filename):
+    """Converts the AI markdown text directly into a binary PDF file."""
+    pdf = MarkdownPdf()
+    pdf.add_section(Section(markdown_text))
+    
+    # Save temporarily to system
+    temp_path = f"temp_{filename}.pdf"
+    pdf.save(temp_path)
+    
+    # Read as binary bytes
+    with open(temp_path, "rb") as pdf_file:
+        pdf_bytes = pdf_file.read()
+        
+    # Clean up the temp file so the server doesn't get cluttered
+    os.remove(temp_path)
+    
+    return pdf_bytes
 
 # --- LIVE QUEUE SYSTEM MANAGER ---
 def process_with_live_queue(context, ticker):
     """Handles API calls and creates a visual live-countdown queue if limits are reached."""
-    queue_ui = st.empty() # Creates a dynamic container on the screen
-    max_retries = 6 # Allows up to 5 minutes of queue time
+    queue_ui = st.empty() 
+    max_retries = 6 
     
     for attempt in range(max_retries):
         try:
-            # Attempt to generate the report
             report_data = run_flagship_forensic_audit(context, ticker)
-            queue_ui.empty() # Clear the queue message upon success
+            queue_ui.empty() 
             return report_data, True
             
         except Exception as e:
             error_msg = str(e)
-            # If Google throws a Rate Limit / Quota error, trigger the Queue System
             if "429" in error_msg or "Quota" in error_msg or "ResourceExhausted" in error_msg:
                 if attempt < max_retries - 1:
-                    # Live Countdown Loop
                     for i in range(60, 0, -1):
-                        queue_ui.warning(f"⏳ **High Traffic Queue.** You are currently in the auto-queue. Your report will generate in **{i} seconds...**")
+                        queue_ui.warning(f"⏳ **Google API Limit Reached.** Retrying automatically in **{i} seconds...**")
                         time.sleep(1)
                 else:
-                    return "⚠️ **Queue Timeout.** The server is at maximum capacity. Please try again later.", False
+                    return "⚠️ Queue Timeout. Please try again later.", False
             else:
-                # If it's a different random error, stop and report it
-                return f"⚠️ **GENERATION ERROR:** {error_msg}", False
+                return f"⚠️ GENERATION ERROR: {error_msg}", False
 
 # --- USER INTERFACE ---
-st.info("💡 Flagship Settings: Enter exact exchange identifiers. For Indian equity markets, append **.NS** or **.BO** (e.g., RELIANCE.NS, TCS.NS).")
+st.info("💡 Enter an exact exchange identifier. The system will process the data and generate a downloadable PDF report.")
 
-mode = st.radio("Select Analytical Processing Feed:", ["Direct Financial API (Automated Live Feed)", "Raw Text Overwrite (Manual Corporate Filing Paste)"])
+ticker_input = st.text_input("Enter Corporate Ticker Token:", value="RELIANCE.NS")
 
-if mode == "Direct Financial API (Automated Live Feed)":
-    ticker_input = st.text_input("Enter Corporate Ticker Token:", value="RELIANCE.NS")
-    if st.button("Execute Flagship Forensic Audit"):
-        if not ticker_input:
-            st.error("Please enter a valid ticker token.")
-        else:
-            with st.spinner(f"Extracting live regulatory and financial data layers for {ticker_input}..."):
-                company_context = get_comprehensive_company_data(ticker_input)
-                
-                if "API_ERROR" in company_context:
-                    st.error(f"Upstream Data Pull Failed: {company_context}")
-                elif "NO_DATA" in company_context:
-                    st.error("The data provider returned an empty set for this asset profile. Please verify token format.")
-                else:
-                    with st.spinner("Synthesizing metrics and constructing master 8-table audit..."):
-                        
-                        # Trigger the Queue System Manager
-                        audit_output, success = process_with_live_queue(company_context, ticker_input)
-                        
-                        # DISPLAY REPORT
-                        st.markdown(audit_output)
-                        
-                        # ONLY SHOW DOWNLOAD BUTTON IF SUCCESSFUL
-                        if success:
-                            st.divider()
-                            st.success("✅ Audit Complete. Your report has left the queue and is ready.")
+if st.button("Generate Forensic PDF Report"):
+    if not ticker_input:
+        st.error("Please enter a valid ticker token.")
+    else:
+        with st.spinner(f"Extracting live regulatory and financial data layers for {ticker_input}..."):
+            company_context = get_comprehensive_company_data(ticker_input)
+            
+            if "API_ERROR" in company_context:
+                st.error(f"Upstream Data Pull Failed: {company_context}")
+            else:
+                with st.spinner("Synthesizing metrics and formatting PDF document..."):
+                    
+                    # 1. Generate the text
+                    audit_output, success = process_with_live_queue(company_context, ticker_input)
+                    
+                    # 2. ONLY if successful, convert to PDF and show download button
+                    if success:
+                        try:
+                            pdf_file_bytes = create_pdf_document(audit_output, ticker_input)
+                            
+                            st.success("✅ Audit Complete. Your PDF is ready for download.")
+                            
+                            # The user ONLY sees this button, not the text
                             st.download_button(
-                                label="📥 Download Forensic Report to Desktop",
-                                data=audit_output,
-                                file_name=f"{ticker_input}_Forensic_Audit_Report.md",
-                                mime="text/markdown"
+                                label="📄 Download Forensic PDF Report",
+                                data=pdf_file_bytes,
+                                file_name=f"{ticker_input}_Forensic_Report.pdf",
+                                mime="application/pdf",
+                                type="primary"
                             )
-                
-else:
-    raw_filing_paste = st.text_area("Paste unstructured textual filings (e.g., Related Party Disclosures, Corporate Governance Reports, Annual Reports):", height=300)
-    if st.button("Compile Master Tables from Custom Paste"):
-        if not raw_filing_paste:
-            st.error("Input area is empty. Please supply text context to execute analysis.")
-        else:
-            with st.spinner("Parsing text fields and aligning historical vectors..."):
-                
-                # Trigger the Queue System Manager
-                audit_output, success = process_with_live_queue(raw_filing_paste, "Custom Context Dataset")
-                
-                # DISPLAY REPORT
-                st.markdown(audit_output)
-                
-                # ONLY SHOW DOWNLOAD BUTTON IF SUCCESSFUL
-                if success:
-                    st.divider()
-                    st.success("✅ Audit Complete. Your report has left the queue and is ready.")
-                    st.download_button(
-                        label="📥 Download Forensic Report to Desktop",
-                        data=audit_output,
-                        file_name="Custom_Forensic_Audit_Report.md",
-                        mime="text/markdown"
-                    )
+                        except Exception as e:
+                            st.error(f"An error occurred while compiling the PDF: {str(e)}")
+                    else:
+                        st.error(audit_output) # Show the error if it failed

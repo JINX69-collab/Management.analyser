@@ -23,11 +23,14 @@ def get_comprehensive_company_data(ticker):
     """Extracts raw management profiles, operational data, and 5-year financials."""
     try:
         stock = yf.Ticker(ticker)
+        
+        # 1. Core Corporate Info
         info_dict = stock.info
         sector = info_dict.get("sector", "N/A")
         industry = info_dict.get("industry", "N/A")
         long_summary = info_dict.get("longBusinessSummary", "No corporate summary available.")
         
+        # 2. Executive Roster & Compensation
         officers = info_dict.get("companyOfficers", [])
         mgmt_text = "--- OFFICIAL MANAGEMENT DATA SEED ---\n"
         if not officers:
@@ -39,6 +42,7 @@ def get_comprehensive_company_data(ticker):
                 pay = person.get('totalPay', 'N/A')
                 mgmt_text += f"Name: {name} | Designation: {title} | Pay: {pay}\n"
                 
+        # 3. 5-Year Financial Statements History
         financials = stock.financials
         fin_text = "--- 5-YEAR FINANCIAL HISTORICAL STATEMENT ---\n"
         if not financials.empty:
@@ -66,29 +70,29 @@ def run_flagship_forensic_audit(context, ticker):
     INSTRUCTIONS:
     Generate exactly SIX comprehensive Markdown tables followed by a final conclusion. Use forensic estimations marked with an asterisk (*) if specific data is unavailable.
     
-    ### 1. MANAGEMENT ANALYSIS TABLE
+    ## 1. MANAGEMENT ANALYSIS TABLE
     Columns: | Name of Management | Designation | Relevant Info | Political Connections / Conflict of Interest | Fraud / Litigation History |
     
-    ### 2. REMUNERATION ANALYSIS TABLE
+    ## 2. REMUNERATION ANALYSIS TABLE
     Columns: | Name | Designation | Individual Remuneration | Management Median | Employee Median* | Management/Employee Ratio* |
     
-    ### 3. PEER RATIO COMPARISON TABLE
+    ## 3. PEER RATIO COMPARISON TABLE
     - Select exactly 10 major peer companies in the EXACT same sector/industry. Place {ticker} at the very bottom.
     Columns: | Company Name | Sector/Industry | Management/Employee Remuneration Ratio* |
     
-    ### 4. RELATED PARTY TRANSACTIONS (RPT) AUDIT TABLE
+    ## 4. RELATED PARTY TRANSACTIONS (RPT) AUDIT TABLE
     - Detail transactions with promoters/directors and flag anomalies or concerning queries.
     Columns: | Related Party Entity | Nature of Relationship | Type of Transaction | Annual Value Trend* | Forensic Assessment & Risk Concern |
     
-    ### 5. SHAREHOLDING PATTERNS & INSIDER TRADING TABLE
+    ## 5. SHAREHOLDING PATTERNS & INSIDER TRADING TABLE
     - Map ownership (Promoters, FII, DII, Public) and flag proxy activity.
     Columns: | Shareholder Category | Current Holding (%)* | 1-Year Change (%)* | Notable Insider Trades / Proxy Flags* | Forensic Risk Assessment |
     
-    ### 6. 5-YEAR HISTORICAL GROWTH TRENDS
+    ## 6. 5-YEAR HISTORICAL GROWTH TRENDS
     Columns: | Financial Year | Sales Growth (%) | Profit Growth (%) | Employee Remuneration Growth (%)* | Mgmt Remuneration Growth (%)* |
     
     ---
-    ### 7. FINAL ANALYSIS OF THE MANAGEMENT (VERDICT)
+    ## 7. FINAL ANALYSIS OF THE MANAGEMENT (VERDICT)
     Provide your definitive, professional analysis of the management's competency, ethical alignment, and assign a final Investment/Governance Risk Grade.
     """
     
@@ -98,7 +102,11 @@ def run_flagship_forensic_audit(context, ticker):
 def create_pdf_document(markdown_text, filename):
     """Converts the AI markdown text directly into a binary PDF file."""
     pdf = MarkdownPdf()
-    pdf.add_section(Section(markdown_text))
+    
+    # THE FIX: Force a Level 1 Heading so markdown-pdf parses correctly
+    safe_markdown = f"# Forensic Audit Report: {filename}\n\n" + markdown_text
+    
+    pdf.add_section(Section(safe_markdown))
     
     # Save temporarily to system
     temp_path = f"temp_{filename}.pdf"
@@ -109,7 +117,8 @@ def create_pdf_document(markdown_text, filename):
         pdf_bytes = pdf_file.read()
         
     # Clean up the temp file so the server doesn't get cluttered
-    os.remove(temp_path)
+    if os.path.exists(temp_path):
+        os.remove(temp_path)
     
     return pdf_bytes
 
